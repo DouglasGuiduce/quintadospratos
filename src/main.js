@@ -1359,14 +1359,20 @@ async function adicionarComentarioComContador(idPrato, textoComentario, inputEle
 // 5. MODAL DE COMENTÁRIOS ESTILO INSTAGRAM
 // ========================================================================
 
-let PRATO_MODAL_ATUAL = null;
+let MODAIS_ATIVOS = new Map(); // Armazenar modais ativos por ID do prato
 
 function abrirModalComentarios(idPrato) {
-  PRATO_MODAL_ATUAL = idPrato;
-  const modal = document.getElementById('modal-comentarios');
-  const conteudoModal = document.getElementById('conteudo-modal-comentarios');
-  const listaComentarios = document.getElementById('lista-comentarios-modal');
-  const inputComentario = document.getElementById('input-comentario-modal');
+  // Verificar se já existe um modal para este prato
+  let modal = document.getElementById(`modal-comentarios-${idPrato}`);
+  
+  if (!modal) {
+    // Criar novo modal específico para este prato
+    modal = criarModalComentarios(idPrato);
+  }
+  
+  const conteudoModal = modal.querySelector('.conteudo-modal-comentarios');
+  const listaComentarios = modal.querySelector('.lista-comentarios-modal');
+  const inputComentario = modal.querySelector('.input-comentario-modal');
   
   // Mostrar modal
   modal.classList.remove('hidden');
@@ -1380,7 +1386,7 @@ function abrirModalComentarios(idPrato) {
   carregarComentariosModal(idPrato, listaComentarios);
   
   // Atualizar avatar do usuário
-  const avatarUsuario = document.getElementById('avatar-usuario-modal');
+  const avatarUsuario = modal.querySelector('.avatar-usuario-modal');
   if (USUARIO_LOGADO && avatarUsuario) {
     const nomeUsuario = USUARIO_LOGADO.nome_completo || 'Usuário';
     avatarUsuario.textContent = nomeUsuario.charAt(0).toUpperCase();
@@ -1392,12 +1398,78 @@ function abrirModalComentarios(idPrato) {
   }, 350);
   
   // Configurar eventos do modal
-  configurarEventosModal();
+  configurarEventosModal(idPrato);
+  
+  // Marcar como ativo
+  MODAIS_ATIVOS.set(idPrato, modal);
 }
 
-function fecharModalComentarios() {
-  const modal = document.getElementById('modal-comentarios');
-  const conteudoModal = document.getElementById('conteudo-modal-comentarios');
+function criarModalComentarios(idPrato) {
+  const container = document.getElementById('container-modais-comentarios');
+  
+  const modalHTML = `
+    <div
+      id="modal-comentarios-${idPrato}"
+      class="hidden fixed inset-0 z-50 flex items-end"
+    >
+      <!-- Overlay escuro -->
+      <div class="absolute inset-0 bg-black/50 backdrop-blur-sm overlay-comentarios" data-prato-id="${idPrato}"></div>
+      
+      <!-- Modal que sobe de baixo -->
+      <div
+        class="conteudo-modal-comentarios relative w-full bg-white dark:bg-gray-900 rounded-t-3xl transform translate-y-full transition-transform duration-300 ease-out max-h-[80vh] flex flex-col"
+      >
+        <!-- Header do Modal -->
+        <div class="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
+          <h3 class="text-lg font-bold text-black dark:text-white">Comentários</h3>
+          <button
+            class="fechar-modal-comentarios text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
+            data-prato-id="${idPrato}"
+          >
+            <span class="material-symbols-outlined text-2xl">close</span>
+          </button>
+        </div>
+        
+        <!-- Lista de Comentários -->
+        <div
+          class="lista-comentarios-modal flex-1 overflow-y-auto p-4 space-y-4"
+        >
+          <!-- Comentários serão inseridos aqui -->
+        </div>
+        
+        <!-- Input para Novo Comentário -->
+        <div class="p-4 border-t border-gray-200 dark:border-gray-700 flex-shrink-0">
+          <div class="flex items-center gap-3">
+            <div class="avatar-usuario-modal w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center text-sm font-bold">
+              ?
+            </div>
+            <input
+              type="text"
+              class="input-comentario-modal flex-1 px-4 py-2 rounded-full border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-800 text-black dark:text-white focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+              placeholder="Adicione um comentário..."
+              data-prato-id="${idPrato}"
+            />
+            <button
+              class="enviar-comentario-modal p-2 rounded-full bg-primary text-white hover:bg-primary/90 transition-colors"
+              data-prato-id="${idPrato}"
+            >
+              <span class="material-symbols-outlined">send</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+  
+  container.insertAdjacentHTML('beforeend', modalHTML);
+  return document.getElementById(`modal-comentarios-${idPrato}`);
+}
+
+function fecharModalComentarios(idPrato) {
+  const modal = document.getElementById(`modal-comentarios-${idPrato}`);
+  if (!modal) return;
+  
+  const conteudoModal = modal.querySelector('.conteudo-modal-comentarios');
   
   // Animar saída (desce para baixo)
   conteudoModal.classList.add('translate-y-full');
@@ -1405,43 +1477,57 @@ function fecharModalComentarios() {
   // Esconder modal após animação
   setTimeout(() => {
     modal.classList.add('hidden');
-    PRATO_MODAL_ATUAL = null;
+    MODAIS_ATIVOS.delete(idPrato);
   }, 300);
 }
 
-function configurarEventosModal() {
-  const modal = document.getElementById('modal-comentarios');
-  const overlay = document.getElementById('overlay-comentarios');
-  const botaoFechar = document.getElementById('fechar-modal-comentarios');
-  const inputComentario = document.getElementById('input-comentario-modal');
-  const botaoEnviar = document.getElementById('enviar-comentario-modal');
+function configurarEventosModal(idPrato) {
+  const modal = document.getElementById(`modal-comentarios-${idPrato}`);
+  if (!modal) return;
+  
+  const overlay = modal.querySelector('.overlay-comentarios');
+  const botaoFechar = modal.querySelector('.fechar-modal-comentarios');
+  const inputComentario = modal.querySelector('.input-comentario-modal');
+  const botaoEnviar = modal.querySelector('.enviar-comentario-modal');
+  
+  // Remover event listeners anteriores para evitar duplicação
+  overlay.replaceWith(overlay.cloneNode(true));
+  botaoFechar.replaceWith(botaoFechar.cloneNode(true));
+  inputComentario.replaceWith(inputComentario.cloneNode(true));
+  botaoEnviar.replaceWith(botaoEnviar.cloneNode(true));
+  
+  // Re-obter elementos após clonagem
+  const newOverlay = modal.querySelector('.overlay-comentarios');
+  const newBotaoFechar = modal.querySelector('.fechar-modal-comentarios');
+  const newInputComentario = modal.querySelector('.input-comentario-modal');
+  const newBotaoEnviar = modal.querySelector('.enviar-comentario-modal');
   
   // Fechar ao clicar no overlay
-  overlay.addEventListener('click', fecharModalComentarios);
+  newOverlay.addEventListener('click', () => fecharModalComentarios(idPrato));
   
   // Fechar ao clicar no botão X
-  botaoFechar.addEventListener('click', fecharModalComentarios);
+  newBotaoFechar.addEventListener('click', () => fecharModalComentarios(idPrato));
   
   // Enviar comentário
-  botaoEnviar.addEventListener('click', () => {
-    if (PRATO_MODAL_ATUAL) {
-      enviarComentarioModal(PRATO_MODAL_ATUAL, inputComentario.value, inputComentario);
-    }
+  newBotaoEnviar.addEventListener('click', () => {
+    enviarComentarioModal(idPrato, newInputComentario.value, newInputComentario);
   });
   
   // Enviar com Enter
-  inputComentario.addEventListener('keypress', (e) => {
-    if (e.key === 'Enter' && PRATO_MODAL_ATUAL) {
-      enviarComentarioModal(PRATO_MODAL_ATUAL, inputComentario.value, inputComentario);
+  newInputComentario.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') {
+      enviarComentarioModal(idPrato, newInputComentario.value, newInputComentario);
     }
   });
   
-  // Fechar com ESC
-  document.addEventListener('keydown', (e) => {
+  // Fechar com ESC (apenas para este modal específico)
+  const escHandler = (e) => {
     if (e.key === 'Escape' && !modal.classList.contains('hidden')) {
-      fecharModalComentarios();
+      fecharModalComentarios(idPrato);
+      document.removeEventListener('keydown', escHandler);
     }
-  });
+  };
+  document.addEventListener('keydown', escHandler);
 }
 
 async function carregarComentariosModal(idPrato, containerComentarios) {
@@ -1551,15 +1637,18 @@ async function enviarComentarioModal(idPrato, textoComentario, inputElement) {
     return;
   }
 
-  // Limpar input e recarregar comentários
+  // Limpar input e recarregar comentários no modal específico
   inputElement.value = '';
-  const listaComentarios = document.getElementById('lista-comentarios-modal');
-  carregarComentariosModal(idPrato, listaComentarios);
+  const modal = document.getElementById(`modal-comentarios-${idPrato}`);
+  if (modal) {
+    const listaComentarios = modal.querySelector('.lista-comentarios-modal');
+    carregarComentariosModal(idPrato, listaComentarios);
+  }
   
-  // Atualizar contador no card original
+  // Atualizar contador no card original (apenas para este prato específico)
   atualizarContadorComentarios(idPrato);
   
-  // Mostrar notificação
+  // Mostrar notificação (apenas para este prato específico)
   mostrarNotificacaoComentario(idPrato);
 }
 
@@ -1578,16 +1667,21 @@ function atualizarContadorComentarios(idPrato) {
 }
 
 function mostrarNotificacaoComentario(idPrato) {
+  // Encontrar o botão específico deste prato
   const botaoComentarios = document.querySelector(`[data-prato-id="${idPrato}"]`);
   if (botaoComentarios) {
     const notificacao = botaoComentarios.querySelector('.notificacao-comentarios');
     if (notificacao) {
       notificacao.classList.remove('hidden');
-      notificacao.textContent = '1';
+      
+      // Incrementar contador se já existir
+      const numeroAtual = parseInt(notificacao.textContent) || 0;
+      notificacao.textContent = numeroAtual + 1;
       
       // Remover notificação após 5 segundos
       setTimeout(() => {
         notificacao.classList.add('hidden');
+        notificacao.textContent = '1'; // Reset para próximo comentário
       }, 5000);
     }
   }
