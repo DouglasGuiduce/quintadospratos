@@ -1,0 +1,33 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer components {
+  .page-section {
+    @apply w-full;
+  }
+  
+  .section-container {
+    @apply w-full max-w-4xl mx-auto px-4;
+  }
+  
+  .section-container-sm {
+    @apply w-full max-w-md mx-auto px-4;
+  }
+  
+  .section-container-lg {
+    @apply w-full max-w-6xl mx-auto px-4;
+  }
+  
+  .bg-background-light {
+    background-color: #f8f7f5;
+  }
+  
+  .bg-background-dark {
+    background-color: #221910;
+  }
+  
+  .font-display {
+    font-family: "Epilogue", sans-serif;
+  }
+}

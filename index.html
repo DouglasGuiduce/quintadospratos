@@ -1,0 +1,936 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Quinta dos Pratos</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Epilogue:wght@400;500;700;900&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined"
+      rel="stylesheet"
+    />
+    <style>
+      /* CSS crítico para evitar FOUC */
+      body {
+        margin: 0;
+        padding: 0;
+        padding-bottom: 80px;
+        font-family: "Epilogue", sans-serif;
+        background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+        min-height: 100vh;
+      }
+
+      /* Esconder conteúdo até CSS carregar */
+      .loading-screen {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 9999;
+      }
+
+      .loading-screen.hidden {
+        display: none;
+      }
+
+      /* Container principal */
+      .app-container {
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        max-width: 28rem;
+        margin: 0 auto;
+        background: white;
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+      }
+
+      /* Header */
+      .app-header {
+        background: linear-gradient(to right, #f27f0d, #ea580c);
+        padding: 1rem;
+      }
+
+      /* Main content */
+      .app-main {
+        flex: 1;
+        background: linear-gradient(to bottom, #f9fafb, white);
+      }
+
+      /* Navigation */
+      .app-nav {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 5rem;
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(12px);
+        border-top: 1px solid rgba(0, 0, 0, 0.1);
+        display: flex;
+        justify-content: space-around;
+        align-items: center;
+        z-index: 9999;
+      }
+
+      /* Animação de loading */
+      @keyframes spin {
+        0% {
+          transform: rotate(0deg);
+        }
+        100% {
+          transform: rotate(360deg);
+        }
+      }
+      .snap-x {
+        scroll-snap-type: x mandatory;
+        scroll-snap-stop: always;
+      }
+
+      /* Garantir que o carrossel funcione em desktop e mobile */
+      #pratos-container {
+        scroll-snap-type: x mandatory;
+        scroll-snap-stop: always;
+      }
+
+      #pratos-container > div {
+        scroll-snap-align: center;
+        scroll-snap-stop: always;
+      }
+      .snap-center {
+        scroll-snap-align: center;
+      }
+      .snap-start {
+        scroll-snap-align: center;
+      }
+      .star-button {
+        background: none;
+        border: none;
+        padding: 0;
+        cursor: pointer;
+      }
+      .scrollbar-hide {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+      }
+      .scrollbar-hide::-webkit-scrollbar {
+        display: none;
+      }
+      .modal-image {
+        max-width: 90vw;
+        max-height: 90vh;
+        object-fit: contain;
+      }
+
+      /* Efeitos visuais modernos */
+      .rodada-item {
+        animation: fadeIn 0.5s ease-in;
+      }
+
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+          transform: translateY(20px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      /* Hover nos botões do menu */
+      .nav-button {
+        transition: all 0.3s ease;
+      }
+
+      .nav-button:hover {
+        transform: translateY(-2px);
+      }
+
+      .nav-button:active {
+        transform: translateY(0);
+      }
+
+      /* Melhorias visuais gerais */
+      .page-section {
+        min-height: calc(100vh - 120px);
+      }
+
+      /* Cards com sombra mais suave */
+      .shadow-card {
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1),
+          0 2px 4px -1px rgba(0, 0, 0, 0.06);
+      }
+
+      /* Gradiente do body no modo escuro */
+      @media (prefers-color-scheme: dark) {
+        body {
+          background: linear-gradient(
+            135deg,
+            #1a1a2e 0%,
+            #16213e 100%
+          ) !important;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Tela de loading -->
+    <div id="loading-screen" class="loading-screen">
+      <div style="text-align: center">
+        <div
+          style="
+            width: 50px;
+            height: 50px;
+            border: 4px solid #f27f0d;
+            border-top: 4px solid transparent;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 1rem;
+          "
+        ></div>
+        <p style="color: #f27f0d; font-weight: bold">Carregando...</p>
+      </div>
+    </div>
+
+    <div class="app-container">
+      <header
+        class="bg-gradient-to-r from-primary to-orange-500 dark:from-primary dark:to-orange-600"
+      >
+        <div class="container mx-auto px-4 py-4">
+          <div class="flex justify-center items-center">
+            <img
+              src="/img/logoquintadospratos.png"
+              alt="Logo Quinta dos Pratos"
+              class="h-24 drop-shadow-lg"
+            />
+          </div>
+        </div>
+      </header>
+
+      <main
+        class="flex-grow flex flex-col bg-gradient-to-b from-gray-50 to-white dark:from-gray-800 dark:to-gray-900 shadow-sm"
+      >
+        <section id="page-feed" class="page-section overflow-y-auto">
+          <div class="section-container py-6">
+            <div class="text-center mb-6">
+              <h2 id="titulo-secao" class="text-3xl font-bold mb-2">
+                Central de Partidas
+              </h2>
+              <p class="text-orange-500 font-semibold text-lg">
+                Quinta dos Pratos
+              </p>
+            </div>
+            <!-- Container para todas as rodadas (preenchido dinamicamente) -->
+            <div id="rodadas-container" class="space-y-8">
+              <!-- Cada rodada será inserida aqui -->
+            </div>
+          </div>
+        </section>
+
+        <section
+          id="page-tabela"
+          class="page-section hidden p-4 overflow-y-auto"
+        >
+          <div class="section-container">
+            <div class="text-center mb-6">
+              <h1 class="text-3xl font-bold mb-2">🏆 Classificação</h1>
+              <p class="text-sm text-text-light/60 dark:text-text-dark/60">
+                Ranking dos melhores pratos
+              </p>
+            </div>
+
+            <!-- Tabela de Classificação -->
+            <div
+              class="bg-white dark:bg-background-dark/50 rounded-2xl shadow-lg overflow-hidden"
+            >
+              <!-- Cabeçalho da Tabela -->
+              <div
+                class="bg-gradient-to-r from-primary to-primary/80 text-white p-4"
+              >
+                <div
+                  class="grid grid-cols-12 gap-2 font-bold text-xs sm:text-sm"
+                >
+                  <div class="col-span-1 text-center">#</div>
+                  <div class="col-span-6">Jogador</div>
+                  <div class="col-span-2 text-center" title="Pontos Totais">
+                    P
+                  </div>
+                  <div class="col-span-2 text-center" title="Jogos">J</div>
+                  <div class="col-span-1 text-center" title="Vitórias">V</div>
+                </div>
+              </div>
+
+              <!-- Corpo da Tabela -->
+              <div
+                id="tabela-container"
+                class="divide-y divide-black/10 dark:divide-white/10"
+              >
+                <!-- Linhas serão inseridas aqui dinamicamente -->
+              </div>
+            </div>
+
+            <!-- Console/Dashboard Dinâmico -->
+            <div class="mt-6 space-y-4">
+              <!-- Quem Votou em Quem -->
+              <div
+                class="bg-white dark:bg-background-dark/50 rounded-2xl shadow-lg p-4"
+              >
+                <h3
+                  class="text-lg font-bold mb-4 text-center flex items-center justify-center gap-2"
+                >
+                  <span class="material-symbols-outlined">visibility</span>
+                  Quem Votou em Quem (Última Rodada)
+                </h3>
+                <div id="matriz-votos" class="overflow-x-auto">
+                  <div
+                    class="text-center text-sm text-gray-600 dark:text-gray-400"
+                  >
+                    <span id="mensagem-matriz-votos"
+                      >Nenhuma rodada finalizada ainda</span
+                    >
+                  </div>
+                  <div id="tabela-matriz-votos" class="hidden">
+                    <!-- Matriz de votos será inserida aqui -->
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Legenda -->
+            <div class="mt-4 p-4 bg-black/5 dark:bg-white/5 rounded-lg">
+              <p
+                class="text-xs text-text-light/70 dark:text-text-dark/70 font-bold mb-2"
+              >
+                Legenda:
+              </p>
+              <div
+                class="grid grid-cols-3 gap-2 text-xs text-text-light/70 dark:text-text-dark/70"
+              >
+                <div><strong>P:</strong> Pontos Totais</div>
+                <div><strong>J:</strong> Jogos (Pratos)</div>
+                <div><strong>V:</strong> Vitórias</div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section
+          id="page-perfil"
+          class="page-section hidden p-4 overflow-y-auto"
+        >
+          <div class="section-container-sm">
+            <h1 class="text-3xl font-bold mb-6 text-center">Meu Perfil</h1>
+
+            <!-- Card do Perfil -->
+            <div
+              class="bg-white dark:bg-background-dark/50 rounded-2xl shadow-lg p-6 mb-6"
+            >
+              <!-- Foto de Perfil -->
+              <div class="flex flex-col items-center mb-6">
+                <div class="relative">
+                  <div
+                    class="w-32 h-32 rounded-full overflow-hidden bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center text-white text-5xl font-bold mb-4"
+                  >
+                    <img
+                      id="perfil-foto"
+                      src=""
+                      alt="Foto de perfil"
+                      class="w-full h-full object-cover hidden"
+                    />
+                    <span id="perfil-iniciais" class="select-none">?</span>
+                  </div>
+                  <button
+                    id="btn-editar-foto"
+                    class="absolute bottom-0 right-0 bg-primary text-white p-2 rounded-full shadow-lg hover:opacity-90 transition-opacity"
+                    title="Alterar foto"
+                  >
+                    <span class="material-symbols-outlined text-sm"
+                      >photo_camera</span
+                    >
+                  </button>
+                </div>
+                <input
+                  type="file"
+                  id="input-foto-perfil"
+                  accept="image/*"
+                  class="hidden"
+                />
+              </div>
+
+              <!-- Nome -->
+              <div class="mb-4">
+                <label
+                  class="block text-sm font-bold mb-2 text-text-light dark:text-text-dark"
+                >
+                  Nome Completo
+                </label>
+                <div class="flex gap-2">
+                  <input
+                    type="text"
+                    id="input-nome-perfil"
+                    placeholder="Seu nome completo"
+                    class="flex-1 px-4 py-2 border border-black/20 dark:border-white/20 rounded-lg bg-white dark:bg-background-dark text-text-light dark:text-text-dark focus:outline-none focus:border-primary"
+                  />
+                  <button
+                    id="btn-salvar-nome"
+                    class="bg-primary text-white px-4 py-2 rounded-lg font-bold hover:opacity-90 transition-opacity flex items-center gap-1"
+                  >
+                    <span class="material-symbols-outlined text-sm">save</span>
+                    Salvar
+                  </button>
+                </div>
+                <p id="status-nome" class="text-sm mt-2"></p>
+              </div>
+
+              <!-- Email (somente leitura) -->
+              <div class="mb-4">
+                <label
+                  class="block text-sm font-bold mb-2 text-text-light dark:text-text-dark"
+                >
+                  Email
+                </label>
+                <input
+                  type="email"
+                  id="input-email-perfil"
+                  disabled
+                  class="w-full px-4 py-2 border border-black/20 dark:border-white/20 rounded-lg bg-black/5 dark:bg-white/5 text-text-light/60 dark:text-text-dark/60"
+                />
+              </div>
+
+              <!-- Estatísticas -->
+              <div
+                class="grid grid-cols-3 gap-4 mt-6 pt-6 border-t border-black/10 dark:border-white/10"
+              >
+                <div class="text-center">
+                  <p class="text-2xl font-bold text-primary" id="stat-pratos">
+                    0
+                  </p>
+                  <p class="text-xs text-text-light/60 dark:text-text-dark/60">
+                    Pratos
+                  </p>
+                </div>
+                <div class="text-center">
+                  <p class="text-2xl font-bold text-primary" id="stat-pontos">
+                    0
+                  </p>
+                  <p class="text-xs text-text-light/60 dark:text-text-dark/60">
+                    Pontos Totais
+                  </p>
+                </div>
+                <div class="text-center">
+                  <p
+                    class="text-2xl font-bold text-primary"
+                    id="stat-ultima-nota"
+                  >
+                    -
+                  </p>
+                  <p class="text-xs text-text-light/60 dark:text-text-dark/60">
+                    Última Nota
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Botão de Logout -->
+            <button
+              id="botao-logout"
+              class="w-full bg-red-500 text-white font-bold py-3 px-4 rounded-lg hover:bg-red-600 transition-colors flex items-center justify-center gap-2"
+            >
+              <span class="material-symbols-outlined">logout</span>
+              Sair
+            </button>
+          </div>
+        </section>
+
+        <section id="page-gestao" class="page-section hidden p-4 space-y-6">
+          <div class="text-center">
+            <h1 class="text-3xl font-bold">Gestão de Rodadas</h1>
+            <p class="text-sm text-black/60 dark:text-white/60 mt-2">
+              Controle o fluxo do jogo
+            </p>
+          </div>
+
+          <!-- Card de Regras -->
+          <div
+            class="bg-gradient-to-br from-primary/10 to-primary/5 dark:from-primary/20 dark:to-primary/10 p-5 rounded-2xl border border-primary/20"
+          >
+            <div class="flex items-center gap-2 mb-3">
+              <span class="material-symbols-outlined text-primary">info</span>
+              <h2 class="font-bold text-lg text-primary">Regras do Jogo</h2>
+            </div>
+            <ul class="space-y-2 text-sm text-black/80 dark:text-white/80">
+              <li class="flex items-start gap-2">
+                <span
+                  class="material-symbols-outlined text-primary text-base mt-0.5"
+                  >check_circle</span
+                >
+                <span
+                  >Use o botão laranja para criar uma nova rodada da
+                  semana</span
+                >
+              </li>
+              <li class="flex items-start gap-2">
+                <span
+                  class="material-symbols-outlined text-primary text-base mt-0.5"
+                  >check_circle</span
+                >
+                <span
+                  >A rodada finaliza automaticamente quando TODOS os usuários
+                  cadastrados votarem</span
+                >
+              </li>
+              <li class="flex items-start gap-2">
+                <span
+                  class="material-symbols-outlined text-primary text-base mt-0.5"
+                  >check_circle</span
+                >
+                <span
+                  >Cada usuário deve avaliar TODOS os pratos (exceto o próprio
+                  se tiver enviado)</span
+                >
+              </li>
+              <li class="flex items-start gap-2">
+                <span
+                  class="material-symbols-outlined text-primary text-base mt-0.5"
+                  >check_circle</span
+                >
+                <span
+                  >Também finaliza se 5 pessoas votarem manualmente para
+                  finalizar</span
+                >
+              </li>
+              <li class="flex items-start gap-2">
+                <span
+                  class="material-symbols-outlined text-primary text-base mt-0.5"
+                  >check_circle</span
+                >
+                <span>Só pode existir uma rodada em votação por vez</span>
+              </li>
+              <li class="flex items-start gap-2">
+                <span
+                  class="material-symbols-outlined text-primary text-base mt-0.5"
+                  >check_circle</span
+                >
+                <span
+                  ><strong>Empate:</strong> Se houver empate na melhor
+                  pontuação, todos os usuários que empataram recebem uma
+                  vitória</span
+                >
+              </li>
+            </ul>
+          </div>
+
+          <!-- Upload de Prato -->
+          <div
+            class="bg-white dark:bg-background-dark/50 p-5 rounded-2xl shadow-lg border border-black/5 dark:border-white/5"
+          >
+            <div class="flex items-center gap-2 mb-3">
+              <span class="material-symbols-outlined text-primary">upload</span>
+              <h2 class="font-bold text-lg">Adicionar Prato à Rodada</h2>
+            </div>
+            <p class="text-sm text-black/60 dark:text-white/60 mb-4">
+              Envie a foto do seu prato para participar da rodada atual
+            </p>
+
+            <div class="space-y-3">
+              <input
+                type="text"
+                id="input-nome-prato"
+                placeholder="Nome do prato"
+                class="w-full rounded-lg border-gray-300 shadow-sm text-sm focus:border-primary focus:ring-primary/50 dark:bg-background-dark dark:border-gray-600"
+              />
+
+              <div class="relative">
+                <input
+                  type="file"
+                  id="input-imagem-prato"
+                  accept="image/*"
+                  class="hidden"
+                />
+                <button
+                  id="btn-selecionar-imagem"
+                  class="w-full flex justify-center items-center gap-2 h-12 px-4 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600 hover:border-primary transition-all"
+                >
+                  <span class="material-symbols-outlined"
+                    >add_photo_alternate</span
+                  >
+                  <span id="texto-imagem-selecionada">Selecionar Foto</span>
+                </button>
+              </div>
+
+              <button
+                id="btn-enviar-prato"
+                class="w-full flex justify-center items-center gap-2 h-12 px-6 rounded-full bg-green-600 text-white font-bold shadow-lg hover:bg-green-700 transition-all disabled:bg-gray-400 disabled:cursor-not-allowed"
+              >
+                <span class="material-symbols-outlined">send</span>
+                Enviar Prato
+              </button>
+
+              <div id="status-upload" class="text-center text-sm"></div>
+            </div>
+          </div>
+
+          <!-- Botão Criar Rodada -->
+          <div class="space-y-3">
+            <button
+              id="btn-criar-rodada"
+              class="w-full flex justify-center items-center gap-2 h-14 px-6 rounded-full bg-primary text-white font-bold text-lg shadow-lg hover:bg-primary/90 transition-all disabled:bg-gray-400 disabled:cursor-not-allowed"
+            >
+              <span class="material-symbols-outlined">add_circle</span>
+              Criar Nova Rodada
+            </button>
+          </div>
+
+          <!-- Card Finalizar Rodada -->
+          <div
+            class="bg-white dark:bg-background-dark/50 p-5 rounded-2xl shadow-lg border border-black/5 dark:border-white/5"
+          >
+            <div class="flex items-center gap-2 mb-3">
+              <span class="material-symbols-outlined text-red-600">timer</span>
+              <h2 class="font-bold text-lg">Finalizar Rodada</h2>
+            </div>
+            <p class="text-sm text-black/60 dark:text-white/60 mb-4">
+              Vote para encerrar a rodada atual e revelar os resultados
+            </p>
+            <button
+              id="btn-finalizar-rodada"
+              class="w-full flex justify-center items-center gap-2 h-12 px-6 rounded-full bg-red-600 text-white font-bold shadow-lg hover:bg-red-700 transition-all disabled:bg-gray-400 disabled:cursor-not-allowed"
+            >
+              <span class="material-symbols-outlined">how_to_vote</span>
+              Votar para Finalizar
+            </button>
+            <div
+              id="finalizacao-status"
+              class="mt-4 text-center text-sm text-black/60 dark:text-white/60"
+            ></div>
+          </div>
+        </section>
+
+        <!-- Seção Admin (visível apenas para administradores) -->
+        <section id="page-admin" class="page-section hidden p-4 space-y-6">
+          <div class="text-center">
+            <h1 class="text-3xl font-bold text-red-600">
+              🔧 Painel Administrativo
+            </h1>
+            <p class="text-sm text-black/60 dark:text-white/60 mt-2">
+              Controle total do sistema
+            </p>
+          </div>
+
+          <!-- Dashboard de Estatísticas -->
+          <div
+            class="bg-gradient-to-br from-red-50 to-red-100 dark:from-red-900/20 dark:to-red-800/20 p-5 rounded-2xl border border-red-200 dark:border-red-800"
+          >
+            <div class="flex items-center gap-2 mb-3">
+              <span class="material-symbols-outlined text-red-600"
+                >dashboard</span
+              >
+              <h2 class="font-bold text-lg text-red-600">Dashboard Geral</h2>
+            </div>
+            <div id="admin-dashboard-stats" class="grid grid-cols-2 gap-4">
+              <!-- Estatísticas serão carregadas dinamicamente -->
+            </div>
+          </div>
+
+          <!-- Gestão de Usuários -->
+          <div
+            class="bg-white dark:bg-background-dark/50 p-5 rounded-2xl shadow-lg border border-black/5 dark:border-white/5"
+          >
+            <div class="flex items-center gap-2 mb-3">
+              <span class="material-symbols-outlined text-blue-600"
+                >people</span
+              >
+              <h2 class="font-bold text-lg">Gestão de Usuários</h2>
+            </div>
+            <div class="space-y-3">
+              <button
+                id="btn-listar-usuarios"
+                class="w-full flex justify-center items-center gap-2 h-12 px-6 rounded-lg bg-blue-600 text-white font-bold shadow-lg hover:bg-blue-700 transition-all"
+              >
+                <span class="material-symbols-outlined">list</span>
+                Listar Todos os Usuários
+              </button>
+              <div
+                id="lista-usuarios"
+                class="hidden space-y-2 max-h-96 overflow-y-auto"
+              >
+                <!-- Lista será carregada dinamicamente -->
+              </div>
+            </div>
+          </div>
+
+          <!-- Gestão de Rodadas -->
+          <div
+            class="bg-white dark:bg-background-dark/50 p-5 rounded-2xl shadow-lg border border-black/5 dark:border-white/5"
+          >
+            <div class="flex items-center gap-2 mb-3">
+              <span class="material-symbols-outlined text-green-600"
+                >sports_esports</span
+              >
+              <h2 class="font-bold text-lg">Gestão de Rodadas</h2>
+            </div>
+            <div class="space-y-3">
+              <button
+                id="btn-listar-rodadas"
+                class="w-full flex justify-center items-center gap-2 h-12 px-6 rounded-lg bg-green-600 text-white font-bold shadow-lg hover:bg-green-700 transition-all"
+              >
+                <span class="material-symbols-outlined">list</span>
+                Listar Todas as Rodadas
+              </button>
+              <button
+                id="btn-finalizar-rodada-admin"
+                class="w-full flex justify-center items-center gap-2 h-12 px-6 rounded-lg bg-orange-600 text-white font-bold shadow-lg hover:bg-orange-700 transition-all"
+              >
+                <span class="material-symbols-outlined">timer_off</span>
+                Finalizar Rodada Atual (Forçado)
+              </button>
+              <button
+                id="btn-gerar-pdf-rodadas"
+                class="w-full flex justify-center items-center gap-2 h-12 px-6 rounded-lg bg-red-600 text-white font-bold shadow-lg hover:bg-red-700 transition-all"
+              >
+                <span class="material-symbols-outlined">picture_as_pdf</span>
+                Gerar PDF das Rodadas Finalizadas
+              </button>
+              <div
+                id="lista-rodadas"
+                class="hidden space-y-2 max-h-96 overflow-y-auto"
+              >
+                <!-- Lista será carregada dinamicamente -->
+              </div>
+
+              <!-- Modal para seleção de rodada para PDF -->
+              <div
+                id="modal-selecionar-rodada-pdf"
+                class="hidden fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+              >
+                <div
+                  class="bg-white dark:bg-gray-800 p-6 rounded-lg max-w-md w-full mx-4"
+                >
+                  <h3 class="text-lg font-bold mb-4">📄 Gerar PDF da Rodada</h3>
+                  <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                    Selecione uma rodada finalizada para gerar o PDF:
+                  </p>
+                  <div
+                    id="lista-rodadas-pdf"
+                    class="space-y-2 max-h-60 overflow-y-auto mb-4"
+                  >
+                    <!-- Lista de rodadas finalizadas será carregada aqui -->
+                  </div>
+                  <div class="flex gap-2">
+                    <button
+                      id="btn-cancelar-pdf"
+                      class="flex-1 bg-gray-400 text-white p-2 rounded hover:bg-gray-500"
+                    >
+                      Cancelar
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Gestão de Conteúdo -->
+          <div
+            class="bg-white dark:bg-background-dark/50 p-5 rounded-2xl shadow-lg border border-black/5 dark:border-white/5"
+          >
+            <div class="flex items-center gap-2 mb-3">
+              <span class="material-symbols-outlined text-purple-600"
+                >content_copy</span
+              >
+              <h2 class="font-bold text-lg">Gestão de Conteúdo</h2>
+            </div>
+            <div class="space-y-3">
+              <button
+                id="btn-listar-pratos"
+                class="w-full flex justify-center items-center gap-2 h-12 px-6 rounded-lg bg-purple-600 text-white font-bold shadow-lg hover:bg-purple-700 transition-all"
+              >
+                <span class="material-symbols-outlined">restaurant</span>
+                Listar Todos os Pratos
+              </button>
+              <div
+                id="lista-pratos"
+                class="hidden space-y-2 max-h-96 overflow-y-auto"
+              >
+                <!-- Lista será carregada dinamicamente -->
+              </div>
+            </div>
+          </div>
+
+          <!-- Ferramentas de Manutenção -->
+          <div
+            class="bg-white dark:bg-background-dark/50 p-5 rounded-2xl shadow-lg border border-black/5 dark:border-white/5"
+          >
+            <div class="flex items-center gap-2 mb-3">
+              <span class="material-symbols-outlined text-yellow-600"
+                >build</span
+              >
+              <h2 class="font-bold text-lg">Ferramentas de Manutenção</h2>
+            </div>
+            <div class="space-y-3">
+              <button
+                id="btn-recalcular-pontos"
+                class="w-full flex justify-center items-center gap-2 h-12 px-6 rounded-lg bg-yellow-600 text-white font-bold shadow-lg hover:bg-yellow-700 transition-all"
+              >
+                <span class="material-symbols-outlined">calculate</span>
+                Recalcular Todos os Pontos
+              </button>
+              <button
+                id="btn-limpar-dados"
+                class="w-full flex justify-center items-center gap-2 h-12 px-6 rounded-lg bg-red-600 text-white font-bold shadow-lg hover:bg-red-700 transition-all"
+              >
+                <span class="material-symbols-outlined">delete_forever</span>
+                Limpar Dados (CUIDADO!)
+              </button>
+            </div>
+          </div>
+
+          <!-- Status das Ações -->
+          <div id="admin-status" class="text-center text-sm"></div>
+        </section>
+      </main>
+    </div>
+
+    <!-- Menu de Navegação Inferior -->
+    <div
+      class="fixed bottom-0 left-0 right-0 flex justify-center"
+      style="z-index: 9999"
+    >
+      <nav
+        class="w-full max-w-lg h-20 bg-white/95 dark:bg-gray-900/95 backdrop-blur-md border-t border-black/10 dark:border-white/10 flex justify-around items-center shadow-2xl"
+      >
+        <button
+          data-target="page-feed"
+          class="nav-button text-primary flex flex-col items-center gap-1"
+        >
+          <span class="material-symbols-outlined">restaurant</span
+          ><span class="text-xs">Feed</span>
+        </button>
+        <button
+          data-target="page-tabela"
+          class="nav-button text-black/60 dark:text-white/60 flex flex-col items-center gap-1"
+        >
+          <span class="material-symbols-outlined">leaderboard</span
+          ><span class="text-xs">Tabela</span>
+        </button>
+        <button
+          data-target="page-perfil"
+          class="nav-button text-black/60 dark:text-white/60 flex flex-col items-center gap-1"
+        >
+          <span class="material-symbols-outlined">person</span
+          ><span class="text-xs">Perfil</span>
+        </button>
+        <button
+          data-target="page-gestao"
+          class="nav-button text-black/60 dark:text-white/60 flex flex-col items-center gap-1"
+        >
+          <span class="material-symbols-outlined">admin_panel_settings</span
+          ><span class="text-xs">Gestão</span>
+        </button>
+        <button
+          id="nav-admin"
+          data-target="page-admin"
+          class="nav-button text-black/60 dark:text-white/60 flex flex-col items-center gap-1 hidden"
+        >
+          <span class="material-symbols-outlined">security</span
+          ><span class="text-xs">Admin</span>
+        </button>
+      </nav>
+    </div>
+
+    <!-- Modal de Imagem -->
+    <div
+      id="modal-imagem"
+      class="hidden fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4"
+      style="backdrop-filter: blur(10px)"
+    >
+      <button
+        id="fechar-modal"
+        class="absolute top-4 right-4 text-white text-4xl hover:text-primary transition-colors"
+      >
+        <span class="material-symbols-outlined text-4xl">close</span>
+      </button>
+      <img id="modal-imagem-src" src="" alt="" class="modal-image rounded-lg" />
+    </div>
+
+    <div id="molde-prato" class="hidden">
+      <div class="flex-none w-full snap-center flex justify-center px-4">
+        <div
+          class="bg-white dark:bg-background-dark/50 rounded-xl shadow-md flex flex-col overflow-hidden"
+          style="height: 700px; width: 100%; max-width: 400px; min-width: 300px"
+        >
+          <img
+            alt="Nome do Prato"
+            class="w-full h-64 object-cover flex-shrink-0 prato-imagem cursor-pointer hover:opacity-90 transition-opacity"
+            src="https://placehold.co/600x400"
+          />
+          <div class="p-4 flex-shrink-0">
+            <h3 class="text-lg font-bold prato-nome truncate">Nome do Prato</h3>
+            <p class="text-sm text-black/60 dark:text-white/60 truncate">
+              por <span class="prato-autor">Autor</span>
+            </p>
+          </div>
+          <div class="px-4 pb-3 flex-shrink-0">
+            <p
+              class="text-sm font-medium mb-2 text-black/80 dark:text-white/80"
+            >
+              Sua Avaliação
+            </p>
+            <div
+              class="rating-stars flex flex-wrap items-center gap-0.5 text-yellow-500"
+              style="min-height: 60px"
+            >
+              <div data-value="1" class="text-2xl cursor-pointer">☆</div>
+              <div data-value="2" class="text-2xl cursor-pointer">☆</div>
+              <div data-value="3" class="text-2xl cursor-pointer">☆</div>
+              <div data-value="4" class="text-2xl cursor-pointer">☆</div>
+              <div data-value="5" class="text-2xl cursor-pointer">☆</div>
+              <div data-value="6" class="text-2xl cursor-pointer">☆</div>
+              <div data-value="7" class="text-2xl cursor-pointer">☆</div>
+              <div data-value="8" class="text-2xl cursor-pointer">☆</div>
+              <div data-value="9" class="text-2xl cursor-pointer">☆</div>
+              <div data-value="10" class="text-2xl cursor-pointer">☆</div>
+            </div>
+          </div>
+          <div
+            class="border-t border-black/10 dark:border-white/10 px-4 py-4 space-y-4 flex-grow overflow-hidden flex flex-col"
+          >
+            <div class="flex-grow overflow-hidden flex flex-col">
+              <h4
+                class="text-sm font-bold mb-2 text-black/80 dark:text-white/80 flex-shrink-0"
+              >
+                Comentários
+              </h4>
+              <div
+                class="comentarios-lista space-y-2 overflow-y-auto flex-grow"
+              ></div>
+            </div>
+            <div class="flex items-center gap-2 flex-shrink-0">
+              <input
+                type="text"
+                placeholder="Adicione um comentário..."
+                class="comentario-input flex-grow block w-full rounded-full border-gray-300 shadow-sm text-sm focus:border-primary focus:ring-primary/50 dark:bg-background-dark dark:border-gray-600"
+              />
+              <button
+                class="comentario-enviar p-2 rounded-full bg-primary text-white flex-shrink-0"
+              >
+                <span class="material-symbols-outlined">send</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>

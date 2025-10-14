@@ -1,0 +1,668 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>Login - Quinta dos Pratos</title>
+
+    <link href="https://fonts.googleapis.com" rel="preconnect" />
+    <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Epilogue:wght@400;500;700;900&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
+    />
+
+    <style>
+      /* CSS crítico para evitar FOUC */
+      body {
+        margin: 0;
+        padding: 0;
+        font-family: "Epilogue", sans-serif;
+        background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .login-container {
+        width: 100%;
+        max-width: 28rem;
+        padding: 1rem;
+      }
+
+      .card-container {
+        perspective: 1000px;
+      }
+      .card-flip {
+        position: relative;
+        transition: transform 0.8s;
+        transform-style: preserve-3d;
+        width: 100%;
+        min-height: 400px; /* Altura mínima reduzida */
+      }
+      .card-flip.is-flipped {
+        transform: rotateY(180deg);
+      }
+      .card-front,
+      .card-back {
+        position: absolute;
+        width: 100%;
+        min-height: 100%;
+        -webkit-backface-visibility: hidden;
+        backface-visibility: hidden;
+        top: 0;
+        left: 0;
+        padding: 1.5rem;
+        border-radius: 1rem;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-start;
+      }
+      .card-front {
+        background: white;
+      }
+      .card-back {
+        transform: rotateY(180deg);
+        background: white;
+      }
+      .dark .card-front,
+      .dark .card-back {
+        background: rgba(34, 25, 16, 0.5);
+      }
+      .flip-trigger {
+        cursor: pointer;
+        color: #f27f0d;
+        font-weight: bold;
+        text-decoration: none;
+        transition: color 0.3s ease;
+      }
+      .flip-trigger:hover {
+        color: #d46a0a;
+      }
+      .form-group {
+        margin-bottom: 1.5rem;
+      }
+      .form-group label {
+        display: block;
+        font-weight: 500;
+        margin-bottom: 0.5rem;
+        color: #374151;
+      }
+      .dark .form-group label {
+        color: #d1d5db;
+      }
+      .form-group input {
+        width: 100%;
+        padding: 0.75rem;
+        border: 1px solid #d1d5db;
+        border-radius: 0.5rem;
+        font-size: 1rem;
+        transition: all 0.3s ease;
+        background: white;
+      }
+      .form-group input:focus {
+        outline: none;
+        border-color: #f27f0d;
+        box-shadow: 0 0 0 3px rgba(242, 127, 13, 0.1);
+      }
+      .dark .form-group input {
+        background: rgba(34, 25, 16, 0.8);
+        border-color: #4b5563;
+        color: white;
+      }
+      .dark .form-group input:focus {
+        border-color: #f27f0d;
+      }
+      .password-input {
+        position: relative;
+      }
+      .toggle-password {
+        position: absolute;
+        top: 50%;
+        right: 0.75rem;
+        transform: translateY(-50%);
+        cursor: pointer;
+        color: #6b7280;
+        transition: color 0.3s ease;
+      }
+      .toggle-password:hover {
+        color: #f27f0d;
+      }
+      .dark .toggle-password {
+        color: #9ca3af;
+      }
+      .btn {
+        width: 100%;
+        padding: 0.75rem;
+        background: #f27f0d;
+        color: white;
+        border: none;
+        border-radius: 9999px;
+        font-size: 1rem;
+        font-weight: bold;
+        cursor: pointer;
+        transition: all 0.3s ease;
+      }
+      .btn:hover {
+        background: #d46a0a;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(242, 127, 13, 0.3);
+      }
+      .btn:active {
+        transform: translateY(0);
+      }
+      .forgot-password {
+        text-align: center;
+        margin: 1rem 0;
+      }
+      .forgot-password a {
+        color: #6b7280;
+        text-decoration: none;
+        font-size: 0.875rem;
+        transition: color 0.3s ease;
+      }
+      .forgot-password a:hover {
+        color: #f27f0d;
+      }
+      .dark .forgot-password a {
+        color: #9ca3af;
+      }
+      .switch-text {
+        text-align: center;
+        margin-top: 1.5rem;
+        color: #6b7280;
+        font-size: 0.875rem;
+      }
+      .dark .switch-text {
+        color: #9ca3af;
+      }
+      .messages {
+        margin-top: 1rem;
+        padding: 0.75rem;
+        border-radius: 0.5rem;
+        text-align: center;
+        font-size: 0.875rem;
+        min-height: 2rem;
+      }
+      .messages.success {
+        background: #d1fae5;
+        color: #065f46;
+        border: 1px solid #a7f3d0;
+      }
+      .dark .messages.success {
+        background: rgba(16, 185, 129, 0.1);
+        color: #6ee7b7;
+        border-color: rgba(16, 185, 129, 0.3);
+      }
+      .messages.error {
+        background: #fee2e2;
+        color: #991b1b;
+        border: 1px solid #fca5a5;
+      }
+      .dark .messages.error {
+        background: rgba(239, 68, 68, 0.1);
+        color: #f87171;
+        border-color: rgba(239, 68, 68, 0.3);
+      }
+      .messages.info {
+        background: #dbeafe;
+        color: #1e40af;
+        border: 1px solid #93c5fd;
+      }
+      .dark .messages.info {
+        background: rgba(59, 130, 246, 0.1);
+        color: #60a5fa;
+        border-color: rgba(59, 130, 246, 0.3);
+      }
+
+      /* Estilos do Modal */
+      .modal {
+        position: fixed;
+        z-index: 1000;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .modal-content {
+        background: white;
+        border-radius: 1rem;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+        width: 90%;
+        max-width: 400px;
+        max-height: 90vh;
+        overflow-y: auto;
+      }
+
+      .dark .modal-content {
+        background: rgba(34, 25, 16, 0.95);
+        color: white;
+      }
+
+      .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 1.5rem 1.5rem 0 1.5rem;
+        border-bottom: 1px solid #e5e7eb;
+      }
+
+      .dark .modal-header {
+        border-bottom-color: #4b5563;
+      }
+
+      .modal-header h3 {
+        margin: 0;
+        font-size: 1.25rem;
+        font-weight: bold;
+        color: #111827;
+      }
+
+      .dark .modal-header h3 {
+        color: white;
+      }
+
+      .close {
+        color: #6b7280;
+        font-size: 1.5rem;
+        font-weight: bold;
+        cursor: pointer;
+        transition: color 0.3s ease;
+      }
+
+      .close:hover {
+        color: #f27f0d;
+      }
+
+      .modal-body {
+        padding: 1.5rem;
+      }
+
+      .modal-body p {
+        margin-bottom: 1rem;
+        color: #6b7280;
+        font-size: 0.875rem;
+      }
+
+      .dark .modal-body p {
+        color: #9ca3af;
+      }
+
+      .modal-buttons {
+        display: flex;
+        gap: 0.75rem;
+        margin-top: 1.5rem;
+      }
+
+      .btn-secondary {
+        flex: 1;
+        padding: 0.75rem;
+        background: #f3f4f6;
+        color: #374151;
+        border: 1px solid #d1d5db;
+        border-radius: 9999px;
+        font-size: 1rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.3s ease;
+      }
+
+      .btn-secondary:hover {
+        background: #e5e7eb;
+        border-color: #9ca3af;
+      }
+
+      .dark .btn-secondary {
+        background: rgba(75, 85, 99, 0.5);
+        color: #d1d5db;
+        border-color: #4b5563;
+      }
+
+      .dark .btn-secondary:hover {
+        background: rgba(75, 85, 99, 0.7);
+        border-color: #6b7280;
+      }
+
+      .modal-buttons .btn {
+        flex: 1;
+        margin: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="login-container">
+      <img
+        src="/img/logoquintadospratos.png"
+        alt="Logo Quinta dos Pratos"
+        class="h-32 mx-auto mb-8"
+      />
+
+      <div class="card-container">
+        <div class="card-flip">
+          <!-- Frente do Card (Login) -->
+          <div class="card-front">
+            <h2
+              class="text-3xl font-bold text-center mb-6 text-gray-900 dark:text-white"
+            >
+              Entrar
+            </h2>
+
+            <form id="loginForm" class="space-y-4">
+              <div class="form-group">
+                <label for="username">Email</label>
+                <input type="email" id="username" name="username" required />
+              </div>
+
+              <div class="form-group">
+                <label for="password">Senha</label>
+                <div class="password-input">
+                  <input
+                    type="password"
+                    id="password"
+                    name="password"
+                    required
+                  />
+                  <i
+                    class="fas fa-eye toggle-password"
+                    onclick="togglePassword('password', this)"
+                  ></i>
+                </div>
+              </div>
+
+              <button type="submit" class="btn">Entrar</button>
+            </form>
+
+            <p class="forgot-password">
+              <a href="#" onclick="esqueceuSenha(event)">Esqueceu sua senha?</a>
+            </p>
+
+            <p class="switch-text">
+              Não tem uma conta?
+              <a href="#" class="flip-trigger">Cadastre-se aqui</a>
+            </p>
+          </div>
+
+          <!-- Verso do Card (Cadastro) -->
+          <div class="card-back">
+            <h2
+              class="text-3xl font-bold text-center mb-6 text-gray-900 dark:text-white"
+            >
+              Cadastre-se
+            </h2>
+
+            <form id="cadastroForm" class="space-y-4">
+              <div class="form-group">
+                <label for="newUsername">Nome Completo</label>
+                <input
+                  type="text"
+                  id="newUsername"
+                  name="newUsername"
+                  required
+                  placeholder="Digite seu nome completo"
+                />
+              </div>
+
+              <div class="form-group">
+                <label for="email">E-mail</label>
+                <input
+                  type="email"
+                  id="email"
+                  name="email"
+                  required
+                  placeholder="Digite seu e-mail"
+                />
+              </div>
+
+              <div class="form-group">
+                <label for="newPassword">Senha</label>
+                <div class="password-input">
+                  <input
+                    type="password"
+                    id="newPassword"
+                    name="newPassword"
+                    required
+                    placeholder="Escolha sua senha"
+                  />
+                  <i
+                    class="fas fa-eye-slash toggle-password"
+                    onclick="togglePassword('newPassword', this)"
+                  ></i>
+                </div>
+              </div>
+
+              <button type="submit" class="btn">Cadastrar</button>
+            </form>
+
+            <p class="switch-text">
+              Já tem uma conta?
+              <a href="#" class="flip-trigger">Faça login aqui</a>
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div id="mensagens" class="messages"></div>
+    </div>
+
+    <!-- Modal para Reset de Senha -->
+    <div id="modal-reset-senha" class="modal" style="display: none">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>Recuperar Senha</h3>
+          <span class="close" onclick="fecharModalResetSenha()">&times;</span>
+        </div>
+        <div class="modal-body">
+          <p>
+            Digite seu email para receber as instruções de recuperação de senha:
+          </p>
+          <form id="form-reset-senha" onsubmit="enviarResetSenha(event)">
+            <div class="form-group">
+              <label for="email-reset">Email</label>
+              <input
+                type="email"
+                id="email-reset"
+                name="email-reset"
+                required
+                placeholder="Digite seu email"
+              />
+            </div>
+            <div class="modal-buttons">
+              <button
+                type="button"
+                class="btn-secondary"
+                onclick="fecharModalResetSenha()"
+              >
+                Cancelar
+              </button>
+              <button type="submit" class="btn">Enviar Email</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <script type="module" src="/src/login.js"></script>
+
+    <script>
+      // Função para alternar visibilidade da senha
+      function togglePassword(inputId, icon) {
+        const input = document.getElementById(inputId);
+        if (input.type === "password") {
+          input.type = "text";
+          icon.classList.remove("fa-eye");
+          icon.classList.add("fa-eye-slash");
+        } else {
+          input.type = "password";
+          icon.classList.remove("fa-eye-slash");
+          icon.classList.add("fa-eye");
+        }
+      }
+
+      // Função para esqueceu senha
+      function esqueceuSenha(event) {
+        event.preventDefault();
+        mostrarModalResetSenha();
+      }
+
+      // Função para mostrar modal de reset de senha
+      function mostrarModalResetSenha() {
+        const modal = document.getElementById("modal-reset-senha");
+        if (modal) {
+          modal.style.display = "flex";
+          document.getElementById("email-reset").focus();
+        }
+      }
+
+      // Função para fechar modal de reset de senha
+      function fecharModalResetSenha() {
+        const modal = document.getElementById("modal-reset-senha");
+        if (modal) {
+          modal.style.display = "none";
+          document.getElementById("form-reset-senha").reset();
+        }
+      }
+
+      // Função para enviar email de reset
+      function enviarResetSenha(event) {
+        event.preventDefault();
+        const email = document.getElementById("email-reset").value;
+
+        if (!email) {
+          showMessage("Por favor, insira seu email.", "error");
+          return;
+        }
+
+        // Chama a função de reset do módulo
+        window.dispatchEvent(
+          new CustomEvent("resetPassword", {
+            detail: { email },
+          })
+        );
+
+        fecharModalResetSenha();
+      }
+
+      // Função para mostrar mensagens
+      function showMessage(text, type = "info") {
+        const messagesDiv = document.getElementById("mensagens");
+        messagesDiv.textContent = text;
+        messagesDiv.className = `messages ${type}`;
+
+        // Remove a mensagem após 5 segundos
+        setTimeout(() => {
+          messagesDiv.textContent = "";
+          messagesDiv.className = "messages";
+        }, 5000);
+      }
+
+      // Função global para login
+      window.loginUsuario = function (event) {
+        event.preventDefault();
+        const form = event.target;
+        const email = form.username.value;
+        const password = form.password.value;
+
+        // Chama a função de login do módulo
+        window.dispatchEvent(
+          new CustomEvent("login", {
+            detail: { email, password },
+          })
+        );
+      };
+
+      // Função global para cadastro
+      window.cadastrarUsuario = function (event) {
+        event.preventDefault();
+        const form = event.target;
+        const nome = form.newUsername.value;
+        const email = form.email.value;
+        const password = form.newPassword.value;
+
+        // Chama a função de cadastro do módulo
+        window.dispatchEvent(
+          new CustomEvent("register", {
+            detail: { nome, email, password },
+          })
+        );
+      };
+
+      document.addEventListener("DOMContentLoaded", () => {
+        const cardFlip = document.querySelector(".card-flip");
+        const cardFront = document.querySelector(".card-front");
+        const cardBack = document.querySelector(".card-back");
+        const flipTriggers = document.querySelectorAll(".flip-trigger");
+
+        // Função para ajustar a altura do card
+        function adjustCardHeight() {
+          const isFlipped = cardFlip.classList.contains("is-flipped");
+          const frontHeight = cardFront.scrollHeight;
+          const backHeight = cardBack.scrollHeight;
+
+          // Usa a altura do lado que está sendo exibido
+          const targetHeight = isFlipped ? backHeight : frontHeight;
+
+          // Define uma altura mínima e máxima
+          const minHeight = 500;
+          const maxHeight = 800;
+          const finalHeight = Math.max(
+            minHeight,
+            Math.min(maxHeight, targetHeight)
+          );
+
+          cardFlip.style.height = finalHeight + "px";
+        }
+
+        flipTriggers.forEach((trigger) => {
+          trigger.addEventListener("click", (e) => {
+            e.preventDefault();
+            cardFlip.classList.toggle("is-flipped");
+
+            // Ajusta a altura após a animação
+            setTimeout(adjustCardHeight, 100);
+          });
+        });
+
+        // Ajusta a altura inicial
+        adjustCardHeight();
+
+        // Ajusta a altura quando a janela é redimensionada
+        window.addEventListener("resize", adjustCardHeight);
+
+        // Fechar modal quando clicar fora dele
+        const modal = document.getElementById("modal-reset-senha");
+        if (modal) {
+          modal.addEventListener("click", (e) => {
+            if (e.target === modal) {
+              fecharModalResetSenha();
+            }
+          });
+        }
+
+        // Fechar modal com tecla ESC
+        document.addEventListener("keydown", (e) => {
+          if (e.key === "Escape") {
+            const modal = document.getElementById("modal-reset-senha");
+            if (modal && modal.style.display === "flex") {
+              fecharModalResetSenha();
+            }
+          }
+        });
+      });
+    </script>
+  </body>
+</html>
