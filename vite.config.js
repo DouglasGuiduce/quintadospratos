@@ -23,11 +23,8 @@ export default defineConfig({
     {
       name: 'copy-static-files',
       writeBundle() {
-        // Copiar login.html
-        if (existsSync('login.html')) {
-          copyFileSync('login.html', 'dist/login.html')
-          console.log('✅ login.html copiado para dist/')
-        }
+        // Não copiar login.html - deixar o Vite processar
+        console.log('✅ Arquivos processados pelo Vite')
       }
     }
   ]
