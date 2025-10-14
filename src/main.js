@@ -1031,6 +1031,45 @@ async function carregarComentarios(idPrato, containerComentarios) {
   }
 }
 
+async function carregarComentariosComContador(idPrato, containerComentarios, contadorElement) {
+  const { data: comentarios, error } = await supabase
+    .from('comentarios')
+    .select('*, perfis(nome_completo, url_foto)')
+    .eq('id_prato', idPrato)
+    .is('id_comentario_pai', null) // Apenas comentários principais (não respostas)
+    .order('data_envio', { ascending: true });
+
+  if (error) {
+    console.error("Erro ao carregar comentários:", error);
+    containerComentarios.innerHTML = `<p class="text-xs text-red-500">Erro ao carregar comentários.</p>`;
+    contadorElement.textContent = 'Ver comentários';
+    return;
+  }
+
+  const totalComentarios = comentarios?.length || 0;
+  
+  // Atualizar contador
+  if (totalComentarios === 0) {
+    contadorElement.textContent = 'Seja o primeiro a comentar';
+  } else if (totalComentarios === 1) {
+    contadorElement.textContent = 'Ver 1 comentário';
+  } else {
+    contadorElement.textContent = `Ver ${totalComentarios} comentários`;
+  }
+
+  if (!comentarios || comentarios.length === 0) {
+    containerComentarios.innerHTML = `<p class="text-xs text-black/40 dark:text-white/40 italic">Nenhum comentário ainda. Seja o primeiro!</p>`;
+    return;
+  }
+
+  containerComentarios.innerHTML = '';
+  
+  for (const comentario of comentarios) {
+    const divComentario = await criarElementoComentario(comentario, idPrato);
+    containerComentarios.appendChild(divComentario);
+  }
+}
+
 async function criarElementoComentario(comentario, idPrato, isResposta = false) {
   const nomeUsuario = comentario.perfis?.nome_completo || 'Anónimo';
   const urlFoto = comentario.perfis?.url_foto;
@@ -1056,32 +1095,32 @@ async function criarElementoComentario(comentario, idPrato, isResposta = false) 
   }
   
   const divComentario = document.createElement('div');
-  divComentario.className = `${isResposta ? 'ml-8 mt-2' : ''} bg-black/5 dark:bg-white/5 p-3 rounded-lg`;
+  divComentario.className = `${isResposta ? 'ml-8 mt-2' : ''} bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm`;
   divComentario.dataset.comentarioId = comentario.id;
   
   // Criar elemento de foto do usuário
   const fotoElement = urlFoto 
-    ? `<img src="${urlFoto}" alt="${nomeUsuario}" class="w-8 h-8 rounded-full object-cover" />`
-    : `<div class="w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center text-xs font-bold">${nomeUsuario.charAt(0).toUpperCase()}</div>`;
+    ? `<img src="${urlFoto}" alt="${nomeUsuario}" class="w-10 h-10 rounded-full object-cover" />`
+    : `<div class="w-10 h-10 rounded-full bg-primary text-white flex items-center justify-center text-sm font-bold">${nomeUsuario.charAt(0).toUpperCase()}</div>`;
   
   divComentario.innerHTML = `
-    <div class="flex items-start gap-2">
+    <div class="flex items-start gap-3">
       <div class="flex-shrink-0">
         ${fotoElement}
       </div>
       <div class="flex-grow">
-        <p class="text-xs font-bold text-black/80 dark:text-white/80">${nomeUsuario}</p>
-        <p class="text-sm text-black/80 dark:text-white/80 mt-1">${comentario.texto_comentario}</p>
+        <p class="text-sm font-bold text-black dark:text-white">${nomeUsuario}</p>
+        <p class="text-base text-black/90 dark:text-white/90 mt-1 leading-relaxed">${comentario.texto_comentario}</p>
         
-        <div class="flex items-center gap-4 mt-2">
-          <button class="btn-curtir flex items-center gap-1 text-xs ${euCurti ? 'text-red-500' : 'text-black/60 dark:text-white/60'} hover:text-red-500 transition-colors">
-            <span class="material-symbols-outlined text-base">${euCurti ? 'favorite' : 'favorite_border'}</span>
-            <span class="curtidas-count">${totalCurtidas > 0 ? totalCurtidas : ''}</span>
+        <div class="flex items-center gap-4 mt-3">
+          <button class="btn-curtir flex items-center gap-1 text-sm ${euCurti ? 'text-red-500' : 'text-black/60 dark:text-white/60'} hover:text-red-500 transition-colors">
+            <span class="material-symbols-outlined text-lg">${euCurti ? 'favorite' : 'favorite_border'}</span>
+            <span class="curtidas-count font-medium">${totalCurtidas > 0 ? totalCurtidas : ''}</span>
           </button>
           
           ${!isResposta ? `
-            <button class="btn-responder text-xs text-black/60 dark:text-white/60 hover:text-primary transition-colors">
-              <span class="material-symbols-outlined text-base">reply</span>
+            <button class="btn-responder text-sm text-black/60 dark:text-white/60 hover:text-primary transition-colors font-medium">
+              <span class="material-symbols-outlined text-lg">reply</span>
               Responder
             </button>
           ` : ''}
@@ -1092,17 +1131,17 @@ async function criarElementoComentario(comentario, idPrato, isResposta = false) 
         ` : ''}
         
         ${!isResposta ? `
-          <div class="form-resposta hidden mt-3 flex items-center gap-2">
+          <div class="form-resposta hidden mt-4 flex items-center gap-2">
             <input
               type="text"
               placeholder="Escrever resposta..."
-              class="input-resposta flex-grow block w-full rounded-full border-gray-300 shadow-sm text-xs focus:border-primary focus:ring-primary/50 dark:bg-background-dark dark:border-gray-600"
+              class="input-resposta flex-grow block w-full rounded-full border-gray-300 shadow-sm text-sm focus:border-primary focus:ring-primary/50 dark:bg-background-dark dark:border-gray-600 px-4 py-2"
             />
-            <button class="btn-enviar-resposta p-1.5 rounded-full bg-primary text-white hover:bg-primary/90">
-              <span class="material-symbols-outlined text-sm">send</span>
+            <button class="btn-enviar-resposta p-2 rounded-full bg-primary text-white hover:bg-primary/90">
+              <span class="material-symbols-outlined text-base">send</span>
             </button>
-            <button class="btn-cancelar-resposta p-1.5 rounded-full bg-gray-400 text-white hover:bg-gray-500">
-              <span class="material-symbols-outlined text-sm">close</span>
+            <button class="btn-cancelar-resposta p-2 rounded-full bg-gray-400 text-white hover:bg-gray-500">
+              <span class="material-symbols-outlined text-base">close</span>
             </button>
           </div>
         ` : ''}
@@ -1288,6 +1327,34 @@ async function adicionarComentario(idPrato, textoComentario, inputElement, conta
   carregarComentarios(idPrato, containerComentarios);
 }
 
+async function adicionarComentarioComContador(idPrato, textoComentario, inputElement, containerComentarios, contadorElement) {
+  if (!USUARIO_LOGADO) {
+    alert("Você precisa estar logado para comentar!");
+    return;
+  }
+
+  if (!textoComentario || textoComentario.trim() === '') {
+    alert("Digite um comentário antes de enviar!");
+    return;
+  }
+
+  const { error } = await supabase.from('comentarios').insert([{
+    id_prato: idPrato,
+    id_usuario: USUARIO_LOGADO.id,
+    texto_comentario: textoComentario.trim()
+  }]);
+
+  if (error) {
+    console.error("Erro ao adicionar comentário:", error);
+    alert("Erro ao enviar comentário. Tente novamente.");
+    return;
+  }
+
+  // Limpar input e recarregar comentários com contador
+  inputElement.value = '';
+  carregarComentariosComContador(idPrato, containerComentarios, contadorElement);
+}
+
 
 function exibirPratosNoCarrossel(pratos, rodada, carouselId, dotsId) {
   const container = document.getElementById(carouselId);
@@ -1355,25 +1422,42 @@ function exibirPratosNoCarrossel(pratos, rodada, carouselId, dotsId) {
       carregarVotoExistente(prato.id, todasEstrelas, secaoEstrelas);
     }
 
-    // Configurar comentários
+    // Configurar comentários estilo Instagram
     const containerComentarios = cartaoPrato.querySelector('.comentarios-lista');
     const inputComentario = cartaoPrato.querySelector('.comentario-input');
     const botaoEnviar = cartaoPrato.querySelector('.comentario-enviar');
+    const botaoVerComentarios = cartaoPrato.querySelector('.btn-ver-comentarios');
+    const botaoFecharComentarios = cartaoPrato.querySelector('.btn-fechar-comentarios');
+    const secaoComentarios = cartaoPrato.querySelector('.secao-comentarios');
+    const contadorComentarios = cartaoPrato.querySelector('.contador-comentarios');
 
-    // Carregar comentários existentes
-    carregarComentarios(prato.id, containerComentarios);
+    // Carregar comentários existentes e atualizar contador
+    carregarComentariosComContador(prato.id, containerComentarios, contadorComentarios);
 
     // Configurar envio de comentário
     botaoEnviar.addEventListener('click', () => {
-      adicionarComentario(prato.id, inputComentario.value, inputComentario, containerComentarios);
+      adicionarComentarioComContador(prato.id, inputComentario.value, inputComentario, containerComentarios, contadorComentarios);
     });
 
-    // Enviar comentário com Enter
+    // Configurar botão para ver comentários
+    botaoVerComentarios.addEventListener('click', () => {
+      secaoComentarios.classList.remove('hidden');
+      // Focar no input de comentário
+      setTimeout(() => inputComentario.focus(), 100);
+    });
+
+    // Configurar botão para fechar comentários
+    botaoFecharComentarios.addEventListener('click', () => {
+      secaoComentarios.classList.add('hidden');
+    });
+
+    // Configurar envio com Enter
     inputComentario.addEventListener('keypress', (e) => {
       if (e.key === 'Enter') {
-        adicionarComentario(prato.id, inputComentario.value, inputComentario, containerComentarios);
+        adicionarComentarioComContador(prato.id, inputComentario.value, inputComentario, containerComentarios, contadorComentarios);
       }
     });
+
 
     container.appendChild(cartaoPrato);
     
