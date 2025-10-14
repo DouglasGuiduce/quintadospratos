@@ -1058,7 +1058,13 @@ async function carregarComentariosComContador(idPrato, containerComentarios, con
   }
 
   if (!comentarios || comentarios.length === 0) {
-    containerComentarios.innerHTML = `<p class="text-xs text-black/40 dark:text-white/40 italic">Nenhum comentário ainda. Seja o primeiro!</p>`;
+    containerComentarios.innerHTML = `
+      <div class="text-center py-6">
+        <span class="material-symbols-outlined text-3xl text-gray-300 dark:text-gray-600 mb-2">chat_bubble_outline</span>
+        <p class="text-sm text-gray-500 dark:text-gray-400">Nenhum comentário nesta foto</p>
+        <p class="text-xs text-gray-400 dark:text-gray-500">Seja o primeiro a comentar!</p>
+      </div>
+    `;
     return;
   }
 
@@ -1546,10 +1552,10 @@ async function carregarComentariosModal(idPrato, containerComentarios) {
 
   if (!comentarios || comentarios.length === 0) {
     containerComentarios.innerHTML = `
-      <div class="text-center py-8">
-        <span class="material-symbols-outlined text-4xl text-gray-400 mb-2">chat_bubble_outline</span>
-        <p class="text-gray-500 dark:text-gray-400">Nenhum comentário ainda</p>
-        <p class="text-sm text-gray-400 dark:text-gray-500">Seja o primeiro a comentar!</p>
+      <div class="text-center py-12">
+        <span class="material-symbols-outlined text-5xl text-gray-300 dark:text-gray-600 mb-4">chat_bubble_outline</span>
+        <p class="text-lg font-medium text-gray-500 dark:text-gray-400 mb-2">Nenhum comentário nesta foto</p>
+        <p class="text-sm text-gray-400 dark:text-gray-500">Seja o primeiro a comentar e iniciar a conversa!</p>
       </div>
     `;
     return;

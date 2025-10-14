@@ -919,9 +919,9 @@
             class="border-t border-black/10 dark:border-white/10 px-4 py-4 space-y-4 flex-grow overflow-hidden flex flex-col"
           >
             <!-- Botão para ver comentários estilo Instagram -->
-            <div class="flex items-center justify-between flex-shrink-0">
+            <div class="flex flex-col gap-3 flex-shrink-0">
               <button
-                class="btn-ver-comentarios flex items-center gap-2 text-sm text-black/60 dark:text-white/60 hover:text-primary transition-colors relative"
+                class="btn-ver-comentarios flex items-center gap-2 text-sm text-black/60 dark:text-white/60 hover:text-primary transition-colors relative w-fit"
                 data-prato-id=""
               >
                 <span class="material-symbols-outlined text-base">chat_bubble_outline</span>
@@ -929,11 +929,13 @@
                 <!-- Notificação de novos comentários -->
                 <span class="notificacao-comentarios hidden absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full text-xs text-white flex items-center justify-center font-bold"></span>
               </button>
-              <div class="flex items-center gap-2 flex-shrink-0">
+              
+              <!-- Campo para adicionar comentário -->
+              <div class="flex items-center gap-2 w-full">
                 <input
                   type="text"
                   placeholder="Adicione um comentário..."
-                  class="comentario-input flex-grow block w-full rounded-full border-gray-300 shadow-sm text-sm focus:border-primary focus:ring-primary/50 dark:bg-background-dark dark:border-gray-600"
+                  class="comentario-input flex-1 block w-full rounded-full border-gray-300 shadow-sm text-sm focus:border-primary focus:ring-primary/50 dark:bg-background-dark dark:border-gray-600 px-4 py-2"
                 />
                 <button
                   class="comentario-enviar p-2 rounded-full bg-primary text-white flex-shrink-0"
