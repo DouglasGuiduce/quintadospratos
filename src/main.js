@@ -1355,6 +1355,244 @@ async function adicionarComentarioComContador(idPrato, textoComentario, inputEle
   carregarComentariosComContador(idPrato, containerComentarios, contadorElement);
 }
 
+// ========================================================================
+// 5. MODAL DE COMENTÁRIOS ESTILO INSTAGRAM
+// ========================================================================
+
+let PRATO_MODAL_ATUAL = null;
+
+function abrirModalComentarios(idPrato) {
+  PRATO_MODAL_ATUAL = idPrato;
+  const modal = document.getElementById('modal-comentarios');
+  const conteudoModal = document.getElementById('conteudo-modal-comentarios');
+  const listaComentarios = document.getElementById('lista-comentarios-modal');
+  const inputComentario = document.getElementById('input-comentario-modal');
+  
+  // Mostrar modal
+  modal.classList.remove('hidden');
+  
+  // Animar entrada (sobe de baixo)
+  setTimeout(() => {
+    conteudoModal.classList.remove('translate-y-full');
+  }, 10);
+  
+  // Carregar comentários no modal
+  carregarComentariosModal(idPrato, listaComentarios);
+  
+  // Atualizar avatar do usuário
+  const avatarUsuario = document.getElementById('avatar-usuario-modal');
+  if (USUARIO_LOGADO && avatarUsuario) {
+    const nomeUsuario = USUARIO_LOGADO.nome_completo || 'Usuário';
+    avatarUsuario.textContent = nomeUsuario.charAt(0).toUpperCase();
+  }
+  
+  // Focar no input após animação
+  setTimeout(() => {
+    inputComentario.focus();
+  }, 350);
+  
+  // Configurar eventos do modal
+  configurarEventosModal();
+}
+
+function fecharModalComentarios() {
+  const modal = document.getElementById('modal-comentarios');
+  const conteudoModal = document.getElementById('conteudo-modal-comentarios');
+  
+  // Animar saída (desce para baixo)
+  conteudoModal.classList.add('translate-y-full');
+  
+  // Esconder modal após animação
+  setTimeout(() => {
+    modal.classList.add('hidden');
+    PRATO_MODAL_ATUAL = null;
+  }, 300);
+}
+
+function configurarEventosModal() {
+  const modal = document.getElementById('modal-comentarios');
+  const overlay = document.getElementById('overlay-comentarios');
+  const botaoFechar = document.getElementById('fechar-modal-comentarios');
+  const inputComentario = document.getElementById('input-comentario-modal');
+  const botaoEnviar = document.getElementById('enviar-comentario-modal');
+  
+  // Fechar ao clicar no overlay
+  overlay.addEventListener('click', fecharModalComentarios);
+  
+  // Fechar ao clicar no botão X
+  botaoFechar.addEventListener('click', fecharModalComentarios);
+  
+  // Enviar comentário
+  botaoEnviar.addEventListener('click', () => {
+    if (PRATO_MODAL_ATUAL) {
+      enviarComentarioModal(PRATO_MODAL_ATUAL, inputComentario.value, inputComentario);
+    }
+  });
+  
+  // Enviar com Enter
+  inputComentario.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter' && PRATO_MODAL_ATUAL) {
+      enviarComentarioModal(PRATO_MODAL_ATUAL, inputComentario.value, inputComentario);
+    }
+  });
+  
+  // Fechar com ESC
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !modal.classList.contains('hidden')) {
+      fecharModalComentarios();
+    }
+  });
+}
+
+async function carregarComentariosModal(idPrato, containerComentarios) {
+  const { data: comentarios, error } = await supabase
+    .from('comentarios')
+    .select('*, perfis(nome_completo, url_foto)')
+    .eq('id_prato', idPrato)
+    .is('id_comentario_pai', null)
+    .order('data_envio', { ascending: true });
+
+  if (error) {
+    console.error("Erro ao carregar comentários:", error);
+    containerComentarios.innerHTML = `<p class="text-center text-red-500 py-4">Erro ao carregar comentários.</p>`;
+    return;
+  }
+
+  if (!comentarios || comentarios.length === 0) {
+    containerComentarios.innerHTML = `
+      <div class="text-center py-8">
+        <span class="material-symbols-outlined text-4xl text-gray-400 mb-2">chat_bubble_outline</span>
+        <p class="text-gray-500 dark:text-gray-400">Nenhum comentário ainda</p>
+        <p class="text-sm text-gray-400 dark:text-gray-500">Seja o primeiro a comentar!</p>
+      </div>
+    `;
+    return;
+  }
+
+  containerComentarios.innerHTML = '';
+  
+  for (const comentario of comentarios) {
+    const divComentario = await criarElementoComentarioModal(comentario, idPrato);
+    containerComentarios.appendChild(divComentario);
+  }
+}
+
+async function criarElementoComentarioModal(comentario, idPrato, isResposta = false) {
+  const nomeUsuario = comentario.perfis?.nome_completo || 'Anónimo';
+  const urlFoto = comentario.perfis?.url_foto;
+  
+  // Buscar curtidas deste comentário
+  const { data: curtidas } = await supabase
+    .from('curtidas_comentarios')
+    .select('id_usuario')
+    .eq('id_comentario', comentario.id);
+  
+  const totalCurtidas = curtidas?.length || 0;
+  const euCurti = curtidas?.some(c => c.id_usuario === USUARIO_LOGADO?.id) || false;
+  
+  const divComentario = document.createElement('div');
+  divComentario.className = `${isResposta ? 'ml-12' : ''} bg-gray-50 dark:bg-gray-800 p-4 rounded-2xl`;
+  
+  // Criar elemento de foto do usuário
+  const fotoElement = urlFoto 
+    ? `<img src="${urlFoto}" alt="${nomeUsuario}" class="w-12 h-12 rounded-full object-cover" />`
+    : `<div class="w-12 h-12 rounded-full bg-primary text-white flex items-center justify-center text-lg font-bold">${nomeUsuario.charAt(0).toUpperCase()}</div>`;
+  
+  divComentario.innerHTML = `
+    <div class="flex items-start gap-4">
+      <div class="flex-shrink-0">
+        ${fotoElement}
+      </div>
+      <div class="flex-grow">
+        <div class="flex items-center gap-2 mb-1">
+          <p class="text-sm font-bold text-black dark:text-white">${nomeUsuario}</p>
+          <span class="text-xs text-gray-500 dark:text-gray-400">${new Date(comentario.data_envio).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>
+        </div>
+        <p class="text-base text-black/90 dark:text-white/90 leading-relaxed mb-3">${comentario.texto_comentario}</p>
+        
+        <div class="flex items-center gap-6">
+          <button class="btn-curtir-modal flex items-center gap-2 text-sm ${euCurti ? 'text-red-500' : 'text-gray-500 dark:text-gray-400'} hover:text-red-500 transition-colors" data-comentario-id="${comentario.id}">
+            <span class="material-symbols-outlined text-lg">${euCurti ? 'favorite' : 'favorite_border'}</span>
+            <span class="curtidas-count-modal font-medium">${totalCurtidas > 0 ? totalCurtidas : ''}</span>
+          </button>
+          
+          <button class="btn-responder-modal text-sm text-gray-500 dark:text-gray-400 hover:text-primary transition-colors font-medium" data-comentario-id="${comentario.id}">
+            <span class="material-symbols-outlined text-lg">reply</span>
+            Responder
+          </button>
+        </div>
+      </div>
+    </div>
+  `;
+  
+  return divComentario;
+}
+
+async function enviarComentarioModal(idPrato, textoComentario, inputElement) {
+  if (!USUARIO_LOGADO) {
+    alert("Você precisa estar logado para comentar!");
+    return;
+  }
+
+  if (!textoComentario || textoComentario.trim() === '') {
+    alert("Digite um comentário antes de enviar!");
+    return;
+  }
+
+  const { error } = await supabase.from('comentarios').insert([{
+    id_prato: idPrato,
+    id_usuario: USUARIO_LOGADO.id,
+    texto_comentario: textoComentario.trim()
+  }]);
+
+  if (error) {
+    console.error("Erro ao adicionar comentário:", error);
+    alert("Erro ao enviar comentário. Tente novamente.");
+    return;
+  }
+
+  // Limpar input e recarregar comentários
+  inputElement.value = '';
+  const listaComentarios = document.getElementById('lista-comentarios-modal');
+  carregarComentariosModal(idPrato, listaComentarios);
+  
+  // Atualizar contador no card original
+  atualizarContadorComentarios(idPrato);
+  
+  // Mostrar notificação
+  mostrarNotificacaoComentario(idPrato);
+}
+
+function atualizarContadorComentarios(idPrato) {
+  const botaoComentarios = document.querySelector(`[data-prato-id="${idPrato}"]`);
+  if (botaoComentarios) {
+    const contador = botaoComentarios.querySelector('.contador-comentarios');
+    // Recarregar contador (implementar lógica similar à carregarComentariosComContador)
+    // Por simplicidade, vamos apenas incrementar visualmente
+    const textoAtual = contador.textContent;
+    if (textoAtual.includes('comentário')) {
+      const numero = parseInt(textoAtual.match(/\d+/)?.[0] || '0') + 1;
+      contador.textContent = numero === 1 ? 'Ver 1 comentário' : `Ver ${numero} comentários`;
+    }
+  }
+}
+
+function mostrarNotificacaoComentario(idPrato) {
+  const botaoComentarios = document.querySelector(`[data-prato-id="${idPrato}"]`);
+  if (botaoComentarios) {
+    const notificacao = botaoComentarios.querySelector('.notificacao-comentarios');
+    if (notificacao) {
+      notificacao.classList.remove('hidden');
+      notificacao.textContent = '1';
+      
+      // Remover notificação após 5 segundos
+      setTimeout(() => {
+        notificacao.classList.add('hidden');
+      }, 5000);
+    }
+  }
+}
+
 
 function exibirPratosNoCarrossel(pratos, rodada, carouselId, dotsId) {
   const container = document.getElementById(carouselId);
@@ -1430,6 +1668,10 @@ function exibirPratosNoCarrossel(pratos, rodada, carouselId, dotsId) {
     const botaoFecharComentarios = cartaoPrato.querySelector('.btn-fechar-comentarios');
     const secaoComentarios = cartaoPrato.querySelector('.secao-comentarios');
     const contadorComentarios = cartaoPrato.querySelector('.contador-comentarios');
+    const notificacaoComentarios = cartaoPrato.querySelector('.notificacao-comentarios');
+
+    // Configurar data-prato-id no botão
+    botaoVerComentarios.setAttribute('data-prato-id', prato.id);
 
     // Carregar comentários existentes e atualizar contador
     carregarComentariosComContador(prato.id, containerComentarios, contadorComentarios);
@@ -1439,11 +1681,9 @@ function exibirPratosNoCarrossel(pratos, rodada, carouselId, dotsId) {
       adicionarComentarioComContador(prato.id, inputComentario.value, inputComentario, containerComentarios, contadorComentarios);
     });
 
-    // Configurar botão para ver comentários
+    // Configurar botão para ver comentários (abrir modal)
     botaoVerComentarios.addEventListener('click', () => {
-      secaoComentarios.classList.remove('hidden');
-      // Focar no input de comentário
-      setTimeout(() => inputComentario.focus(), 100);
+      abrirModalComentarios(prato.id);
     });
 
     // Configurar botão para fechar comentários
