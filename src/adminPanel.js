@@ -80,6 +80,7 @@ function configurarEventListenersAdmin() {
   
   // Botões de manutenção
   document.getElementById('btn-recalcular-pontos')?.addEventListener('click', recalcularPontos);
+  document.getElementById('btn-zerar-dados-usuarios')?.addEventListener('click', zerarDadosUsuarios);
   document.getElementById('btn-limpar-dados')?.addEventListener('click', limparDados);
   
   // Botões do modal PDF
@@ -545,12 +546,179 @@ async function recalcularPontos() {
     console.log('🔢 Recalculando todos os pontos...');
     mostrarStatusAdmin('⏳ Recalculando pontos... (pode demorar)', 'info');
     
-    const { error } = await supabase.rpc('recalcular_pontos_apenas_finalizadas');
+    // Buscar todas as rodadas finalizadas
+    console.log('🔍 Buscando rodadas finalizadas...');
     
-    if (error) {
-      console.error('Erro ao recalcular pontos:', error);
-      mostrarStatusAdmin('❌ Erro ao recalcular pontos', 'error');
+    const { data: rodadasFinalizadas, error: errorRodadas } = await supabase
+      .from('rodadas')
+      .select('id, nome, status')
+      .eq('status', 'finalizada')
+      .order('id', { ascending: true });
+    
+    console.log('Resposta da busca de rodadas:', { data: rodadasFinalizadas, error: errorRodadas });
+    
+    if (errorRodadas) {
+      console.error('Erro detalhado ao buscar rodadas finalizadas:', errorRodadas);
+      console.error('Código do erro:', errorRodadas.code);
+      console.error('Mensagem do erro:', errorRodadas.message);
+      console.error('Detalhes do erro:', errorRodadas.details);
+      console.error('Hint do erro:', errorRodadas.hint);
+      
+      mostrarStatusAdmin(`❌ Erro ao buscar rodadas: ${errorRodadas.message || errorRodadas.details || 'Erro desconhecido'}`, 'error');
       return;
+    }
+    
+    if (!rodadasFinalizadas || rodadasFinalizadas.length === 0) {
+      console.log('⚠️ Nenhuma rodada finalizada encontrada - zerando todos os dados dos usuários');
+      mostrarStatusAdmin('⚠️ Nenhuma rodada finalizada encontrada - zerando dados dos usuários', 'info');
+      
+    // Zerar todos os dados dos usuários quando não há rodadas finalizadas
+    console.log('🔄 Tentando zerar dados de todos os usuários...');
+    
+    const { data: dataZerar, error: errorZerar } = await supabase
+      .from('perfis')
+      .update({
+        pontos_totais: 0,
+        jogos_participados: 0,
+        vitorias: 0,
+        media_geral: 0
+      })
+      .select('id, nome_completo');
+    
+    console.log('Resposta da atualização:', { data: dataZerar, error: errorZerar });
+    
+    if (errorZerar) {
+      console.error('Erro detalhado ao zerar dados dos usuários (método em lote):', errorZerar);
+      console.error('Código do erro:', errorZerar.code);
+      console.error('Mensagem do erro:', errorZerar.message);
+      console.error('Detalhes do erro:', errorZerar.details);
+      console.error('Hint do erro:', errorZerar.hint);
+      
+      console.log('🔄 Tentando método individual...');
+      mostrarStatusAdmin('⚠️ Erro no método em lote, tentando método individual...', 'warning');
+      
+      // Tentar método individual
+      await zerarDadosUsuariosIndividual();
+      return;
+    }
+      
+      console.log('✅ Todos os dados dos usuários foram zerados');
+      mostrarStatusAdmin('✅ Todos os dados dos usuários foram zerados com sucesso!', 'success');
+      
+      // Recarregar dashboard e listas
+      setTimeout(() => {
+        carregarDashboardAdmin();
+        listarUsuarios();
+      }, 2000);
+      
+      return;
+    }
+    
+    console.log(`📊 Encontradas ${rodadasFinalizadas.length} rodadas finalizadas`);
+    
+    // Resetar pontos de todos os usuários
+    const { error: errorReset } = await supabase
+      .from('perfis')
+      .update({
+        pontos_totais: 0,
+        jogos_participados: 0,
+        vitorias: 0,
+        media_geral: 0
+      });
+    
+    if (errorReset) {
+      console.error('Erro ao resetar pontos:', errorReset);
+      mostrarStatusAdmin('❌ Erro ao resetar pontos', 'error');
+      return;
+    }
+    
+    console.log('✅ Pontos resetados para todos os usuários');
+    
+    // Recalcular pontos para cada rodada finalizada
+    for (const rodada of rodadasFinalizadas) {
+      console.log(`🔄 Recalculando pontos da rodada ${rodada.id} - ${rodada.nome}`);
+      
+      // Buscar todos os pratos da rodada
+      const { data: pratos, error: errorPratos } = await supabase
+        .from('pratos')
+        .select('id, id_usuario')
+        .eq('rodada_id', rodada.id);
+      
+      if (errorPratos) {
+        console.error(`Erro ao buscar pratos da rodada ${rodada.id}:`, errorPratos);
+        continue;
+      }
+      
+      if (!pratos || pratos.length === 0) {
+        console.log(`⚠️ Nenhum prato encontrado na rodada ${rodada.id}`);
+        continue;
+      }
+      
+      // Calcular pontos para cada prato
+      for (const prato of pratos) {
+        // Buscar avaliações do prato
+        const { data: avaliacoes, error: errorAvaliacoes } = await supabase
+          .from('avaliacoes')
+          .select('nota')
+          .eq('id_prato', prato.id);
+        
+        if (errorAvaliacoes) {
+          console.error(`Erro ao buscar avaliações do prato ${prato.id}:`, errorAvaliacoes);
+          continue;
+        }
+        
+        if (!avaliacoes || avaliacoes.length === 0) {
+          console.log(`⚠️ Nenhuma avaliação encontrada para o prato ${prato.id}`);
+          continue;
+        }
+        
+        // Calcular média do prato
+        const somaNotas = avaliacoes.reduce((sum, av) => sum + av.nota, 0);
+        const mediaPrato = somaNotas / avaliacoes.length;
+        
+        console.log(`📊 Prato ${prato.id} - Média: ${mediaPrato.toFixed(2)}`);
+        
+        // Buscar perfil atual do usuário
+        const { data: perfilData, error: errorPerfil } = await supabase
+          .from('perfis')
+          .select('pontos_totais, jogos_participados, vitorias')
+          .eq('id', prato.id_usuario)
+          .single();
+        
+        if (errorPerfil) {
+          console.error(`Erro ao buscar perfil do usuário ${prato.id_usuario}:`, errorPerfil);
+          continue;
+        }
+        
+        const pontosAtuais = perfilData?.pontos_totais || 0;
+        const jogosAtuais = perfilData?.jogos_participados || 0;
+        const vitoriasAtuais = perfilData?.vitorias || 0;
+        
+        // Atualizar pontos do usuário
+        const novosPontos = pontosAtuais + mediaPrato;
+        const novosJogos = jogosAtuais + 1;
+        const novaMedia = novosPontos / novosJogos;
+        
+        // Verificar se é vitória (média >= 7.0)
+        const novasVitorias = mediaPrato >= 7.0 ? vitoriasAtuais + 1 : vitoriasAtuais;
+        
+        const { error: errorUpdate } = await supabase
+          .from('perfis')
+          .update({
+            pontos_totais: novosPontos,
+            jogos_participados: novosJogos,
+            vitorias: novasVitorias,
+            media_geral: novaMedia
+          })
+          .eq('id', prato.id_usuario);
+        
+        if (errorUpdate) {
+          console.error(`Erro ao atualizar perfil do usuário ${prato.id_usuario}:`, errorUpdate);
+          continue;
+        }
+        
+        console.log(`✅ Usuário ${prato.id_usuario} - Pontos: ${novosPontos.toFixed(2)}, Jogos: ${novosJogos}, Média: ${novaMedia.toFixed(2)}`);
+      }
     }
     
     mostrarStatusAdmin('✅ Pontos recalculados com sucesso!', 'success');
@@ -564,6 +732,149 @@ async function recalcularPontos() {
   } catch (error) {
     console.error('❌ Erro ao recalcular pontos:', error);
     mostrarStatusAdmin('❌ Erro ao recalcular pontos', 'error');
+  }
+}
+
+async function zerarDadosUsuarios() {
+  if (!IS_ADMIN) return;
+  
+  const confirmacao = confirm('⚠️ Tem certeza que deseja ZERAR os dados de TODOS os usuários?\n\nIsso vai zerar:\n- Pontos totais\n- Jogos participados\n- Vitórias\n- Média geral\n\nEsta ação pode ser revertida recalculando os pontos.');
+  
+  if (!confirmacao) return;
+  
+  try {
+    console.log('🔄 Zerando dados de todos os usuários...');
+    mostrarStatusAdmin('⏳ Zerando dados dos usuários...', 'info');
+    
+    // Primeiro, vamos verificar quantos usuários existem
+    const { data: usuariosAntes, error: errorContar } = await supabase
+      .from('perfis')
+      .select('id, nome_completo, pontos_totais, jogos_participados, vitorias')
+      .limit(10);
+    
+    if (errorContar) {
+      console.error('Erro ao contar usuários:', errorContar);
+      mostrarStatusAdmin('❌ Erro ao verificar usuários', 'error');
+      return;
+    }
+    
+    console.log('Usuários encontrados antes da atualização:', usuariosAntes);
+    
+    const { data: dataAtualizada, error } = await supabase
+      .from('perfis')
+      .update({
+        pontos_totais: 0,
+        jogos_participados: 0,
+        vitorias: 0,
+        media_geral: 0
+      })
+      .select('id, nome_completo, pontos_totais, jogos_participados, vitorias');
+    
+    console.log('Resposta da atualização:', { data: dataAtualizada, error });
+    
+    if (error) {
+      console.error('Erro detalhado ao zerar dados dos usuários:', error);
+      console.error('Código do erro:', error.code);
+      console.error('Mensagem do erro:', error.message);
+      console.error('Detalhes do erro:', error.details);
+      console.error('Hint do erro:', error.hint);
+      
+      mostrarStatusAdmin(`❌ Erro ao zerar dados: ${error.message || error.details || 'Erro desconhecido'}`, 'error');
+      return;
+    }
+    
+    console.log('✅ Dados de todos os usuários foram zerados');
+    mostrarStatusAdmin('✅ Dados de todos os usuários foram zerados com sucesso!', 'success');
+    
+    // Recarregar dashboard e listas
+    setTimeout(() => {
+      carregarDashboardAdmin();
+      listarUsuarios();
+    }, 2000);
+    
+  } catch (error) {
+    console.error('❌ Erro ao zerar dados dos usuários:', error);
+    mostrarStatusAdmin('❌ Erro ao zerar dados dos usuários', 'error');
+  }
+}
+
+async function zerarDadosUsuariosIndividual() {
+  if (!IS_ADMIN) return;
+  
+  const confirmacao = confirm('⚠️ Tem certeza que deseja ZERAR os dados de TODOS os usuários?\n\nIsso vai zerar:\n- Pontos totais\n- Jogos participados\n- Vitórias\n- Média geral\n\nEsta ação pode ser revertida recalculando os pontos.');
+  
+  if (!confirmacao) return;
+  
+  try {
+    console.log('🔄 Zerando dados de todos os usuários (método individual)...');
+    mostrarStatusAdmin('⏳ Zerando dados dos usuários (método individual)...', 'info');
+    
+    // Buscar todos os usuários
+    const { data: todosUsuarios, error: errorBuscar } = await supabase
+      .from('perfis')
+      .select('id, nome_completo, pontos_totais, jogos_participados, vitorias');
+    
+    if (errorBuscar) {
+      console.error('Erro ao buscar usuários:', errorBuscar);
+      mostrarStatusAdmin('❌ Erro ao buscar usuários', 'error');
+      return;
+    }
+    
+    if (!todosUsuarios || todosUsuarios.length === 0) {
+      mostrarStatusAdmin('❌ Nenhum usuário encontrado', 'error');
+      return;
+    }
+    
+    console.log(`📊 Encontrados ${todosUsuarios.length} usuários para atualizar`);
+    
+    let sucessos = 0;
+    let erros = 0;
+    
+    // Atualizar cada usuário individualmente
+    for (const usuario of todosUsuarios) {
+      try {
+        const { error: errorUpdate } = await supabase
+          .from('perfis')
+          .update({
+            pontos_totais: 0,
+            jogos_participados: 0,
+            vitorias: 0,
+            media_geral: 0
+          })
+          .eq('id', usuario.id);
+        
+        if (errorUpdate) {
+          console.error(`Erro ao atualizar usuário ${usuario.id} (${usuario.nome_completo}):`, errorUpdate);
+          erros++;
+        } else {
+          console.log(`✅ Usuário ${usuario.id} (${usuario.nome_completo}) atualizado com sucesso`);
+          sucessos++;
+        }
+      } catch (error) {
+        console.error(`Erro inesperado ao atualizar usuário ${usuario.id}:`, error);
+        erros++;
+      }
+    }
+    
+    console.log(`📊 Resultado: ${sucessos} sucessos, ${erros} erros`);
+    
+    if (erros === 0) {
+      mostrarStatusAdmin(`✅ Todos os ${sucessos} usuários foram atualizados com sucesso!`, 'success');
+    } else if (sucessos > 0) {
+      mostrarStatusAdmin(`⚠️ ${sucessos} usuários atualizados, ${erros} erros`, 'warning');
+    } else {
+      mostrarStatusAdmin('❌ Erro ao atualizar usuários', 'error');
+    }
+    
+    // Recarregar dashboard e listas
+    setTimeout(() => {
+      carregarDashboardAdmin();
+      listarUsuarios();
+    }, 2000);
+    
+  } catch (error) {
+    console.error('❌ Erro ao zerar dados dos usuários:', error);
+    mostrarStatusAdmin('❌ Erro ao zerar dados dos usuários', 'error');
   }
 }
 
