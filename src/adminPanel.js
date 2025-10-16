@@ -836,7 +836,7 @@ async function recalcularPontos() {
         vitorias: 0,
         media_geral: 0
       })
-      .select('id, nome_completo');
+      .neq('id', '00000000-0000-0000-0000-000000000000'); // Atualiza todos
     
     console.log('Resposta da atualização:', { data: dataZerar, error: errorZerar });
     
@@ -847,11 +847,8 @@ async function recalcularPontos() {
       console.error('Detalhes do erro:', errorZerar.details);
       console.error('Hint do erro:', errorZerar.hint);
       
-      console.log('🔄 Tentando método individual...');
-      mostrarStatusAdmin('⚠️ Erro no método em lote, tentando método individual...', 'warning');
-      
-      // Tentar método individual
-      await zerarDadosUsuariosIndividual();
+      const mensagemErro = errorZerar.message || errorZerar.details || JSON.stringify(errorZerar);
+      mostrarStatusAdmin(`❌ Erro ao zerar dados: ${mensagemErro}`, 'error');
       return;
     }
       
@@ -877,11 +874,13 @@ async function recalcularPontos() {
         jogos_participados: 0,
         vitorias: 0,
         media_geral: 0
-      });
+      })
+      .neq('id', '00000000-0000-0000-0000-000000000000'); // Atualiza todos
     
     if (errorReset) {
       console.error('Erro ao resetar pontos:', errorReset);
-      mostrarStatusAdmin('❌ Erro ao resetar pontos', 'error');
+      const mensagemErro = errorReset.message || errorReset.details || JSON.stringify(errorReset);
+      mostrarStatusAdmin(`❌ Erro ao resetar pontos: ${mensagemErro}`, 'error');
       return;
     }
     
@@ -1021,7 +1020,7 @@ async function zerarDadosUsuarios() {
         vitorias: 0,
         media_geral: 0
       })
-      .select('id, nome_completo, pontos_totais, jogos_participados, vitorias');
+      .neq('id', '00000000-0000-0000-0000-000000000000'); // Atualiza todos
     
     console.log('Resposta da atualização:', { data: dataAtualizada, error });
     
@@ -1032,7 +1031,8 @@ async function zerarDadosUsuarios() {
       console.error('Detalhes do erro:', error.details);
       console.error('Hint do erro:', error.hint);
       
-      mostrarStatusAdmin(`❌ Erro ao zerar dados: ${error.message || error.details || 'Erro desconhecido'}`, 'error');
+      const mensagemErro = error.message || error.details || JSON.stringify(error);
+      mostrarStatusAdmin(`❌ Erro ao zerar dados: ${mensagemErro}`, 'error');
       return;
     }
     
