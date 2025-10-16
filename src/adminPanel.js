@@ -75,6 +75,9 @@ function configurarEventListenersAdmin() {
   document.getElementById('btn-finalizar-rodada-admin')?.addEventListener('click', finalizarRodadaForcado);
   document.getElementById('btn-gerar-pdf-rodadas')?.addEventListener('click', mostrarModalSelecionarRodadaPDF);
   
+  // Botão de verificar votos
+  document.getElementById('btn-verificar-votos')?.addEventListener('click', verificarStatusVotacao);
+  
   // Botões de gestão de conteúdo
   document.getElementById('btn-listar-pratos')?.addEventListener('click', listarPratos);
   
@@ -460,6 +463,256 @@ function fecharModalPDF() {
   if (modal) {
     modal.classList.add('hidden');
   }
+}
+
+// ========================================================================
+// 5.2. VERIFICAÇÃO DE STATUS DE VOTAÇÃO
+// ========================================================================
+
+async function verificarStatusVotacao() {
+  if (!IS_ADMIN) return;
+  
+  try {
+    console.log('🔍 Verificando status de votação...');
+    mostrarStatusAdmin('📋 Carregando status de votação...', 'info');
+    
+    // Buscar rodada ativa
+    const { data: rodadaAtiva, error: errorRodada } = await supabase
+      .from('rodadas')
+      .select('*')
+      .eq('status', 'votacao_aberta')
+      .single();
+    
+    if (errorRodada || !rodadaAtiva) {
+      console.log('Nenhuma rodada ativa encontrada');
+      mostrarStatusVotacaoVazio('Nenhuma rodada em votação no momento');
+      mostrarStatusAdmin('ℹ️ Nenhuma rodada ativa encontrada', 'info');
+      return;
+    }
+    
+    console.log('Rodada ativa encontrada:', rodadaAtiva);
+    
+    // Buscar todos os pratos da rodada
+    const { data: pratos, error: errorPratos } = await supabase
+      .from('pratos')
+      .select('id, id_usuario, nome_prato, perfis(nome_completo)')
+      .eq('rodada_id', rodadaAtiva.id);
+    
+    if (errorPratos) {
+      console.error('Erro ao buscar pratos:', errorPratos);
+      mostrarStatusAdmin('❌ Erro ao buscar pratos', 'error');
+      return;
+    }
+    
+    if (!pratos || pratos.length === 0) {
+      mostrarStatusVotacaoVazio('A rodada ainda não tem pratos cadastrados');
+      mostrarStatusAdmin('ℹ️ Nenhum prato encontrado na rodada', 'info');
+      return;
+    }
+    
+    console.log(`Encontrados ${pratos.length} pratos na rodada`);
+    
+    // Buscar todos os usuários
+    const { data: usuarios, error: errorUsuarios } = await supabase
+      .from('perfis')
+      .select('id, nome_completo, email')
+      .order('nome_completo', { ascending: true });
+    
+    if (errorUsuarios) {
+      console.error('Erro ao buscar usuários:', errorUsuarios);
+      mostrarStatusAdmin('❌ Erro ao buscar usuários', 'error');
+      return;
+    }
+    
+    console.log(`Encontrados ${usuarios.length} usuários`);
+    
+    // Buscar todas as avaliações da rodada
+    const { data: avaliacoes, error: errorAvaliacoes } = await supabase
+      .from('avaliacoes')
+      .select('id_votante, id_prato')
+      .in('id_prato', pratos.map(p => p.id));
+    
+    if (errorAvaliacoes) {
+      console.error('Erro ao buscar avaliações:', errorAvaliacoes);
+      mostrarStatusAdmin('❌ Erro ao buscar avaliações', 'error');
+      return;
+    }
+    
+    console.log(`Encontradas ${avaliacoes?.length || 0} avaliações`);
+    
+    // Processar dados para cada usuário
+    const statusUsuarios = [];
+    
+    for (const usuario of usuarios) {
+      // Verificar se o usuário tem prato nesta rodada
+      const pratosDoUsuario = pratos.filter(p => p.id_usuario === usuario.id);
+      const temPrato = pratosDoUsuario.length > 0;
+      
+      // Buscar pratos que o usuário deve avaliar (todos exceto o próprio)
+      const pratosParaAvaliar = pratos.filter(p => p.id_usuario !== usuario.id);
+      
+      // Verificar quantos pratos o usuário já avaliou
+      const avaliacoesDoUsuario = avaliacoes?.filter(a => a.id_votante === usuario.id) || [];
+      const pratosAvaliados = avaliacoesDoUsuario.length;
+      
+      // Verificar se completou a votação
+      const completouVotacao = pratosAvaliados >= pratosParaAvaliar.length && pratosParaAvaliar.length > 0;
+      
+      statusUsuarios.push({
+        nome: usuario.nome_completo || usuario.email || 'Sem nome',
+        temPrato: temPrato,
+        pratosParaAvaliar: pratosParaAvaliar.length,
+        pratosAvaliados: pratosAvaliados,
+        completouVotacao: completouVotacao,
+        porcentagem: pratosParaAvaliar.length > 0 ? (pratosAvaliados / pratosParaAvaliar.length * 100) : 0
+      });
+    }
+    
+    // Separar usuários que completaram e que faltam
+    const usuariosCompletaram = statusUsuarios.filter(u => u.completouVotacao);
+    const usuariosFaltam = statusUsuarios.filter(u => !u.completouVotacao);
+    
+    console.log(`Status: ${usuariosCompletaram.length} completaram, ${usuariosFaltam.length} faltam`);
+    
+    // Renderizar status
+    renderizarStatusVotacao({
+      rodada: rodadaAtiva,
+      totalPratos: pratos.length,
+      totalUsuarios: usuarios.length,
+      usuariosCompletaram: usuariosCompletaram,
+      usuariosFaltam: usuariosFaltam
+    });
+    
+    mostrarStatusAdmin(`✅ Status atualizado: ${usuariosCompletaram.length}/${usuarios.length} usuários votaram`, 'success');
+    
+  } catch (error) {
+    console.error('❌ Erro ao verificar status de votação:', error);
+    mostrarStatusAdmin('❌ Erro ao verificar status de votação', 'error');
+  }
+}
+
+function mostrarStatusVotacaoVazio(mensagem) {
+  const container = document.getElementById('status-votacao-container');
+  if (!container) return;
+  
+  container.classList.remove('hidden');
+  container.innerHTML = `
+    <div class="text-center py-8 bg-gray-50 dark:bg-gray-800 rounded-lg">
+      <span class="material-symbols-outlined text-6xl text-gray-400 mb-3">info</span>
+      <p class="text-sm text-gray-600 dark:text-gray-400">${mensagem}</p>
+    </div>
+  `;
+}
+
+function renderizarStatusVotacao(dados) {
+  const container = document.getElementById('status-votacao-container');
+  if (!container) return;
+  
+  container.classList.remove('hidden');
+  
+  const porcentagemGeral = dados.totalUsuarios > 0 
+    ? (dados.usuariosCompletaram.length / dados.totalUsuarios * 100).toFixed(0)
+    : 0;
+  
+  let html = `
+    <!-- Resumo Geral -->
+    <div class="bg-gradient-to-br from-orange-50 to-orange-100 dark:from-orange-900/20 dark:to-orange-800/20 p-4 rounded-lg border border-orange-200 dark:border-orange-800">
+      <h3 class="font-bold text-center mb-3 text-orange-800 dark:text-orange-400">
+        📊 ${dados.rodada.nome}
+      </h3>
+      <div class="grid grid-cols-3 gap-3 mb-3">
+        <div class="text-center bg-white dark:bg-gray-800 p-2 rounded">
+          <p class="text-xl font-bold text-blue-600">${dados.totalPratos}</p>
+          <p class="text-xs text-gray-600 dark:text-gray-400">Pratos</p>
+        </div>
+        <div class="text-center bg-white dark:bg-gray-800 p-2 rounded">
+          <p class="text-xl font-bold text-green-600">${dados.usuariosCompletaram.length}</p>
+          <p class="text-xs text-gray-600 dark:text-gray-400">Votaram</p>
+        </div>
+        <div class="text-center bg-white dark:bg-gray-800 p-2 rounded">
+          <p class="text-xl font-bold text-red-600">${dados.usuariosFaltam.length}</p>
+          <p class="text-xs text-gray-600 dark:text-gray-400">Faltam</p>
+        </div>
+      </div>
+      
+      <!-- Barra de Progresso -->
+      <div class="bg-gray-200 dark:bg-gray-700 rounded-full h-4 overflow-hidden">
+        <div class="bg-gradient-to-r from-green-500 to-green-600 h-full flex items-center justify-center text-white text-xs font-bold transition-all duration-500" 
+             style="width: ${porcentagemGeral}%">
+          ${porcentagemGeral}%
+        </div>
+      </div>
+    </div>
+  `;
+  
+  // Usuários que JÁ votaram
+  if (dados.usuariosCompletaram.length > 0) {
+    html += `
+      <div class="bg-green-50 dark:bg-green-900/20 p-4 rounded-lg border border-green-200 dark:border-green-800">
+        <h4 class="font-bold text-sm mb-2 flex items-center gap-2 text-green-800 dark:text-green-400">
+          <span class="material-symbols-outlined text-base">check_circle</span>
+          Já Votaram (${dados.usuariosCompletaram.length})
+        </h4>
+        <div class="space-y-2">
+    `;
+    
+    dados.usuariosCompletaram.forEach(usuario => {
+      html += `
+        <div class="bg-white dark:bg-gray-800 p-2 rounded flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <span class="material-symbols-outlined text-green-600 text-sm">person</span>
+            <span class="text-xs font-medium text-text-light dark:text-text-dark">${usuario.nome}</span>
+            ${usuario.temPrato ? '<span class="text-xs bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-300 px-2 py-0.5 rounded">Chef</span>' : ''}
+          </div>
+          <span class="text-xs font-bold text-green-600">${usuario.pratosAvaliados}/${usuario.pratosParaAvaliar} ✓</span>
+        </div>
+      `;
+    });
+    
+    html += `
+        </div>
+      </div>
+    `;
+  }
+  
+  // Usuários que FALTAM votar
+  if (dados.usuariosFaltam.length > 0) {
+    html += `
+      <div class="bg-red-50 dark:bg-red-900/20 p-4 rounded-lg border border-red-200 dark:border-red-800">
+        <h4 class="font-bold text-sm mb-2 flex items-center gap-2 text-red-800 dark:text-red-400">
+          <span class="material-symbols-outlined text-base">pending</span>
+          Faltam Votar (${dados.usuariosFaltam.length})
+        </h4>
+        <div class="space-y-2">
+    `;
+    
+    dados.usuariosFaltam.forEach(usuario => {
+      const faltam = usuario.pratosParaAvaliar - usuario.pratosAvaliados;
+      html += `
+        <div class="bg-white dark:bg-gray-800 p-2 rounded">
+          <div class="flex items-center justify-between mb-1">
+            <div class="flex items-center gap-2">
+              <span class="material-symbols-outlined text-red-600 text-sm">person</span>
+              <span class="text-xs font-medium text-text-light dark:text-text-dark">${usuario.nome}</span>
+              ${usuario.temPrato ? '<span class="text-xs bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-300 px-2 py-0.5 rounded">Chef</span>' : ''}
+            </div>
+            <span class="text-xs font-bold text-red-600">${usuario.pratosAvaliados}/${usuario.pratosParaAvaliar}</span>
+          </div>
+          <div class="bg-gray-200 dark:bg-gray-700 rounded-full h-2 overflow-hidden">
+            <div class="bg-orange-500 h-full transition-all duration-300" style="width: ${usuario.porcentagem}%"></div>
+          </div>
+          <p class="text-xs text-gray-600 dark:text-gray-400 mt-1">Faltam ${faltam} voto${faltam !== 1 ? 's' : ''}</p>
+        </div>
+      `;
+    });
+    
+    html += `
+        </div>
+      </div>
+    `;
+  }
+  
+  container.innerHTML = html;
 }
 
 // ========================================================================
