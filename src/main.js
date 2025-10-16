@@ -1115,17 +1115,17 @@ async function criarElementoComentario(comentario, idPrato, isResposta = false) 
         ${fotoElement}
       </div>
       <div class="flex-grow">
-        <p class="text-sm font-bold text-black dark:text-white">${nomeUsuario}</p>
-        <p class="text-base text-black/90 dark:text-white/90 mt-1 leading-relaxed">${comentario.texto_comentario}</p>
+        <p class="text-sm font-bold text-text-light dark:text-text-dark">${nomeUsuario}</p>
+        <p class="text-base text-text-light/90 dark:text-text-dark/90 mt-1 leading-relaxed">${comentario.texto_comentario}</p>
         
         <div class="flex items-center gap-4 mt-3">
-          <button class="btn-curtir flex items-center gap-1 text-sm ${euCurti ? 'text-red-500' : 'text-black/60 dark:text-white/60'} hover:text-red-500 transition-colors">
+          <button class="btn-curtir flex items-center gap-1 text-sm ${euCurti ? 'text-red-500' : 'text-text-light/60 dark:text-text-dark/60'} hover:text-red-500 transition-colors">
             <span class="material-symbols-outlined text-lg">${euCurti ? 'favorite' : 'favorite_border'}</span>
             <span class="curtidas-count font-medium">${totalCurtidas > 0 ? totalCurtidas : ''}</span>
           </button>
           
           ${!isResposta ? `
-            <button class="btn-responder text-sm text-black/60 dark:text-white/60 hover:text-primary transition-colors font-medium">
+            <button class="btn-responder text-sm text-text-light/60 dark:text-text-dark/60 hover:text-primary transition-colors font-medium">
               <span class="material-symbols-outlined text-lg">reply</span>
               Responder
             </button>
@@ -1597,10 +1597,10 @@ async function criarElementoComentarioModal(comentario, idPrato, isResposta = fa
       </div>
       <div class="flex-grow">
         <div class="flex items-center gap-2 mb-1">
-          <p class="text-sm font-bold text-black dark:text-white">${nomeUsuario}</p>
+          <p class="text-sm font-bold text-text-light dark:text-text-dark">${nomeUsuario}</p>
           <span class="text-xs text-gray-500 dark:text-gray-400">${new Date(comentario.data_envio).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>
         </div>
-        <p class="text-base text-black/90 dark:text-white/90 leading-relaxed mb-3">${comentario.texto_comentario}</p>
+        <p class="text-base text-text-light/90 dark:text-text-dark/90 leading-relaxed mb-3">${comentario.texto_comentario}</p>
         
         <div class="flex items-center gap-6">
           <button class="btn-curtir-modal flex items-center gap-2 text-sm ${euCurti ? 'text-red-500' : 'text-gray-500 dark:text-gray-400'} hover:text-red-500 transition-colors" data-comentario-id="${comentario.id}">
@@ -2382,7 +2382,7 @@ async function carregarTabela() {
     const linhaHTML = `
       <div class="grid grid-cols-12 gap-2 p-4 items-center ${bgClass} transition-colors">
         <!-- Posição -->
-        <div class="col-span-1 text-center font-bold text-sm">
+        <div class="col-span-1 text-center font-bold text-sm text-text-light dark:text-text-dark">
           ${medalha || posicao + 'º'}
         </div>
         
@@ -2395,7 +2395,7 @@ async function carregarTabela() {
             }
           </div>
           <div class="min-w-0">
-            <p class="font-semibold text-sm truncate ${isUsuarioAtual ? 'text-primary' : ''}">
+            <p class="font-semibold text-sm truncate ${isUsuarioAtual ? 'text-primary' : 'text-text-light dark:text-text-dark'}">
               ${perfil.nome_completo}
               ${isUsuarioAtual ? '<span class="text-xs">(Você)</span>' : ''}
             </p>
@@ -2408,12 +2408,12 @@ async function carregarTabela() {
         </div>
         
         <!-- J - Jogos -->
-        <div class="col-span-2 text-center text-sm">
+        <div class="col-span-2 text-center text-sm text-text-light dark:text-text-dark">
           ${perfil.jogos}
         </div>
         
         <!-- V - Vitórias -->
-        <div class="col-span-1 text-center text-sm font-semibold">
+        <div class="col-span-1 text-center text-sm font-semibold text-text-light dark:text-text-dark">
           ${perfil.vitorias || 0}
         </div>
       </div>

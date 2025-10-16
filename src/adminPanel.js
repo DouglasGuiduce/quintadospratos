@@ -210,13 +210,13 @@ function renderizarListaUsuarios(usuarios) {
     card.innerHTML = `
       <div class="flex justify-between items-start">
         <div class="flex-1">
-          <h4 class="font-bold text-sm">${usuario.nome_completo || 'Sem nome'}</h4>
+          <h4 class="font-bold text-sm text-text-light dark:text-text-dark">${usuario.nome_completo || 'Sem nome'}</h4>
           <p class="text-xs text-gray-600 dark:text-gray-400">${usuario.email}</p>
           <div class="flex gap-4 mt-2 text-xs">
-            <span class="text-blue-600">P: ${(usuario.pontos_totais || 0).toFixed(2)}</span>
-            <span class="text-green-600">J: ${usuario.jogos_participados || 0}</span>
-            <span class="text-purple-600">V: ${usuario.vitorias || 0}</span>
-            <span class="text-orange-600">M: ${(usuario.media_geral || 0).toFixed(2)}</span>
+            <span class="text-blue-600 dark:text-blue-400">P: ${(usuario.pontos_totais || 0).toFixed(2)}</span>
+            <span class="text-green-600 dark:text-green-400">J: ${usuario.jogos_participados || 0}</span>
+            <span class="text-purple-600 dark:text-purple-400">V: ${usuario.vitorias || 0}</span>
+            <span class="text-orange-600 dark:text-orange-400">M: ${(usuario.media_geral || 0).toFixed(2)}</span>
           </div>
           <p class="text-xs ${statusColor} mt-1">Status: ${usuario.status_conta}</p>
         </div>
@@ -286,10 +286,10 @@ function renderizarListaRodadas(rodadas) {
     card.innerHTML = `
       <div class="flex justify-between items-start">
         <div class="flex-1">
-          <h4 class="font-bold text-sm">${rodada.nome}</h4>
+          <h4 class="font-bold text-sm text-text-light dark:text-text-dark">${rodada.nome}</h4>
           <p class="text-xs text-gray-600 dark:text-gray-400">ID: ${rodada.id}</p>
           <p class="text-xs ${statusColor} mt-1">Status: ${rodada.status}</p>
-          <p class="text-xs text-gray-500 mt-1">Criada: ${new Date(rodada.created_at).toLocaleDateString('pt-BR')}</p>
+          <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Criada: ${new Date(rodada.created_at).toLocaleDateString('pt-BR')}</p>
         </div>
         <div class="flex gap-1">
           <button onclick="editarRodada(${rodada.id})" class="p-1 text-blue-600 hover:bg-blue-100 rounded" title="Editar">
@@ -420,7 +420,7 @@ function renderizarListaRodadasPDF(rodadas) {
     item.innerHTML = `
       <div class="flex justify-between items-center">
         <div>
-          <h4 class="font-bold text-sm">${rodada.nome}</h4>
+          <h4 class="font-bold text-sm text-text-light dark:text-text-dark">${rodada.nome}</h4>
           <p class="text-xs text-gray-600 dark:text-gray-400">Finalizada em: ${dataFinalizacao}</p>
         </div>
         <button onclick="gerarPDFRodada(${rodada.id})" 
@@ -511,10 +511,10 @@ function renderizarListaPratos(pratos) {
     card.innerHTML = `
       <div class="flex justify-between items-start">
         <div class="flex-1">
-          <h4 class="font-bold text-sm">${prato.nome_prato}</h4>
+          <h4 class="font-bold text-sm text-text-light dark:text-text-dark">${prato.nome_prato}</h4>
           <p class="text-xs text-gray-600 dark:text-gray-400">Por: ${prato.perfis?.nome_completo || 'Desconhecido'}</p>
-          <p class="text-xs text-gray-500">Rodada: ${prato.rodadas?.nome || 'N/A'}</p>
-          <p class="text-xs text-gray-500">Enviado: ${new Date(prato.data_envio).toLocaleDateString('pt-BR')}</p>
+          <p class="text-xs text-gray-500 dark:text-gray-400">Rodada: ${prato.rodadas?.nome || 'N/A'}</p>
+          <p class="text-xs text-gray-500 dark:text-gray-400">Enviado: ${new Date(prato.data_envio).toLocaleDateString('pt-BR')}</p>
         </div>
         <div class="flex gap-1">
           <button onclick="verPrato('${prato.url_imagem}')" class="p-1 text-blue-600 hover:bg-blue-100 rounded" title="Ver imagem">
@@ -881,36 +881,149 @@ async function zerarDadosUsuariosIndividual() {
 async function limparDados() {
   if (!IS_ADMIN) return;
   
-  const confirmacao = confirm('🚨 ATENÇÃO: Tem certeza que deseja LIMPAR TODOS OS DADOS?\n\nIsso vai apagar:\n- Todos os pratos\n- Todas as avaliações\n- Todas as rodadas\n- Todos os perfis\n\n✅ SEUS DADOS DE ADMIN SERÃO PRESERVADOS!\n\nEsta ação NÃO PODE ser desfeita!');
+  const confirmacao = confirm('🚨 ATENÇÃO: Tem certeza que deseja RESETAR TODO O SISTEMA?\n\nIsso vai:\n✅ MANTER todos os usuários cadastrados\n❌ DELETAR todas as rodadas\n❌ DELETAR todos os pratos\n❌ DELETAR todas as avaliações\n❌ DELETAR todos os comentários\n❌ ZERAR todas as estatísticas dos usuários\n🔄 RESETAR os IDs para começar do 1\n\nEsta ação NÃO PODE ser desfeita!');
   
   if (!confirmacao) return;
   
-  const confirmacao2 = confirm('🚨 ÚLTIMA CONFIRMAÇÃO!\n\nDigite "CONFIRMAR" no próximo prompt para continuar.');
+  const confirmacao2 = confirm('🚨 ÚLTIMA CONFIRMAÇÃO!\n\nTem CERTEZA ABSOLUTA que deseja resetar tudo?');
   
   if (!confirmacao2) return;
   
   try {
-    console.log('🗑️ Limpando todos os dados (preservando admins)...');
-    mostrarStatusAdmin('⏳ Limpando dados... (preservando administradores)', 'info');
+    console.log('🗑️ Resetando todo o sistema...');
+    mostrarStatusAdmin('⏳ Resetando sistema... (isso pode demorar)', 'info');
     
-    const { error } = await supabase.rpc('limpar_todos_dados');
+    // Chamar função SQL para resetar tudo
+    const { error } = await supabase.rpc('resetar_sistema_completo');
     
     if (error) {
-      console.error('Erro ao limpar dados:', error);
-      mostrarStatusAdmin('❌ Erro ao limpar dados', 'error');
-      return;
+      console.error('❌ Erro ao resetar sistema:', error);
+      console.error('Código:', error.code);
+      console.error('Mensagem:', error.message);
+      console.error('Detalhes:', error.details);
+      
+      // Se a função não existir, fazer manualmente
+      if (error.code === '42883' || error.message?.includes('does not exist')) {
+        console.log('⚠️ Função SQL não encontrada, executando reset manual...');
+        await resetarSistemaManual();
+      } else {
+        mostrarStatusAdmin(`❌ Erro ao resetar sistema: ${error.message}`, 'error');
+        return;
+      }
+    } else {
+      mostrarStatusAdmin('✅ Sistema resetado com sucesso!', 'success');
     }
-    
-    mostrarStatusAdmin('✅ Dados limpos com sucesso! (Administradores preservados)', 'success');
     
     // Recarregar dashboard
     setTimeout(() => {
       carregarDashboardAdmin();
+      location.reload(); // Recarregar página para atualizar tudo
     }, 2000);
     
   } catch (error) {
-    console.error('❌ Erro ao limpar dados:', error);
-    mostrarStatusAdmin('❌ Erro ao limpar dados', 'error');
+    console.error('❌ Erro ao resetar sistema:', error);
+    mostrarStatusAdmin('❌ Erro ao resetar sistema', 'error');
+  }
+}
+
+async function resetarSistemaManual() {
+  try {
+    console.log('🔄 Iniciando reset manual do sistema...');
+    mostrarStatusAdmin('⏳ Executando reset manual...', 'info');
+    
+    // PASSO 1: Deletar todas as curtidas de comentários
+    console.log('1️⃣ Deletando curtidas de comentários...');
+    const { error: errorCurtidas } = await supabase
+      .from('curtidas_comentarios')
+      .delete()
+      .neq('id', 0); // Deleta todos
+    
+    if (errorCurtidas) {
+      console.error('Erro ao deletar curtidas:', errorCurtidas);
+    }
+    
+    // PASSO 2: Deletar todos os comentários
+    console.log('2️⃣ Deletando comentários...');
+    const { error: errorComentarios } = await supabase
+      .from('comentarios')
+      .delete()
+      .neq('id', 0);
+    
+    if (errorComentarios) {
+      console.error('Erro ao deletar comentários:', errorComentarios);
+    }
+    
+    // PASSO 3: Deletar todas as avaliações
+    console.log('3️⃣ Deletando avaliações...');
+    const { error: errorAvaliacoes } = await supabase
+      .from('avaliacoes')
+      .delete()
+      .neq('id', 0);
+    
+    if (errorAvaliacoes) {
+      console.error('Erro ao deletar avaliações:', errorAvaliacoes);
+    }
+    
+    // PASSO 4: Deletar votos de finalização
+    console.log('4️⃣ Deletando votos de finalização...');
+    const { error: errorFinalizacoes } = await supabase
+      .from('finalizacoes_rodada')
+      .delete()
+      .neq('id', 0);
+    
+    if (errorFinalizacoes) {
+      console.error('Erro ao deletar finalizações:', errorFinalizacoes);
+    }
+    
+    // PASSO 5: Deletar todos os pratos
+    console.log('5️⃣ Deletando pratos...');
+    const { error: errorPratos } = await supabase
+      .from('pratos')
+      .delete()
+      .neq('id', 0);
+    
+    if (errorPratos) {
+      console.error('Erro ao deletar pratos:', errorPratos);
+    }
+    
+    // PASSO 6: Deletar todas as rodadas
+    console.log('6️⃣ Deletando rodadas...');
+    const { error: errorRodadas } = await supabase
+      .from('rodadas')
+      .delete()
+      .neq('id', 0);
+    
+    if (errorRodadas) {
+      console.error('Erro ao deletar rodadas:', errorRodadas);
+    }
+    
+    // PASSO 7: Zerar estatísticas dos usuários
+    console.log('7️⃣ Zerando estatísticas dos usuários...');
+    const { error: errorPerfis } = await supabase
+      .from('perfis')
+      .update({
+        pontos_totais: 0,
+        jogos_participados: 0,
+        vitorias: 0,
+        media_geral: 0
+      })
+      .neq('id', '00000000-0000-0000-0000-000000000000'); // Atualiza todos
+    
+    if (errorPerfis) {
+      console.error('Erro ao zerar perfis:', errorPerfis);
+      throw errorPerfis;
+    }
+    
+    console.log('✅ Reset manual concluído com sucesso!');
+    mostrarStatusAdmin('✅ Sistema resetado com sucesso!', 'success');
+    
+    // Informar sobre reset de IDs
+    alert('✅ Sistema resetado com sucesso!\n\n⚠️ ATENÇÃO: Os IDs das tabelas foram mantidos.\n\nPara resetar os IDs para começarem do 1, execute o seguinte SQL no Supabase:\n\nALTER SEQUENCE rodadas_id_seq RESTART WITH 1;\nALTER SEQUENCE pratos_id_seq RESTART WITH 1;\nALTER SEQUENCE avaliacoes_id_seq RESTART WITH 1;\nALTER SEQUENCE comentarios_id_seq RESTART WITH 1;');
+    
+  } catch (error) {
+    console.error('❌ Erro no reset manual:', error);
+    mostrarStatusAdmin('❌ Erro no reset manual', 'error');
+    throw error;
   }
 }
 

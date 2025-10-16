@@ -191,6 +191,21 @@
             #9a3412 100%
           ) !important;
         }
+
+        /* Garantir que o container principal também tenha fundo escuro */
+        .app-container {
+          background: #1f2937 !important; /* gray-800 */
+        }
+
+        /* Loading screen também deve seguir o tema escuro */
+        .loading-screen {
+          background: linear-gradient(
+            135deg,
+            #451a03 0%,
+            #7c2d12 50%,
+            #9a3412 100%
+          ) !important;
+        }
       }
     </style>
   </head>
@@ -234,10 +249,15 @@
         <section id="page-feed" class="page-section overflow-y-auto">
           <div class="section-container py-6">
             <div class="text-center mb-6">
-              <h2 id="titulo-secao" class="text-3xl font-bold mb-2">
+              <h2
+                id="titulo-secao"
+                class="text-3xl font-bold mb-2 text-text-light dark:text-text-dark"
+              >
                 Central de Partidas
               </h2>
-              <p class="text-orange-500 font-semibold text-lg">
+              <p
+                class="text-orange-500 dark:text-orange-400 font-semibold text-lg"
+              >
                 Quinta dos Pratos
               </p>
             </div>
@@ -254,7 +274,11 @@
         >
           <div class="section-container">
             <div class="text-center mb-6">
-              <h1 class="text-3xl font-bold mb-2">🏆 Classificação</h1>
+              <h1
+                class="text-3xl font-bold mb-2 text-text-light dark:text-text-dark"
+              >
+                🏆 Classificação
+              </h1>
               <p class="text-sm text-text-light/60 dark:text-text-dark/60">
                 Ranking dos melhores pratos
               </p>
@@ -297,7 +321,7 @@
                 class="bg-white dark:bg-background-dark/50 rounded-2xl shadow-lg p-4"
               >
                 <h3
-                  class="text-lg font-bold mb-4 text-center flex items-center justify-center gap-2"
+                  class="text-lg font-bold mb-4 text-center flex items-center justify-center gap-2 text-text-light dark:text-text-dark"
                 >
                   <span class="material-symbols-outlined">visibility</span>
                   Quem Votou em Quem (Última Rodada)
@@ -340,7 +364,11 @@
           class="page-section hidden p-4 overflow-y-auto"
         >
           <div class="section-container-sm">
-            <h1 class="text-3xl font-bold mb-6 text-center">Meu Perfil</h1>
+            <h1
+              class="text-3xl font-bold mb-6 text-center text-text-light dark:text-text-dark"
+            >
+              Meu Perfil
+            </h1>
 
             <!-- Card do Perfil -->
             <div
@@ -465,7 +493,9 @@
 
         <section id="page-gestao" class="page-section hidden p-4 space-y-6">
           <div class="text-center">
-            <h1 class="text-3xl font-bold">Gestão de Rodadas</h1>
+            <h1 class="text-3xl font-bold text-text-light dark:text-text-dark">
+              Gestão de Rodadas
+            </h1>
             <p class="text-sm text-black/60 dark:text-white/60 mt-2">
               Controle o fluxo do jogo
             </p>
@@ -547,7 +577,9 @@
           >
             <div class="flex items-center gap-2 mb-3">
               <span class="material-symbols-outlined text-primary">upload</span>
-              <h2 class="font-bold text-lg">Adicionar Prato à Rodada</h2>
+              <h2 class="font-bold text-lg text-text-light dark:text-text-dark">
+                Adicionar Prato à Rodada
+              </h2>
             </div>
             <p class="text-sm text-black/60 dark:text-white/60 mb-4">
               Envie a foto do seu prato para participar da rodada atual
@@ -608,7 +640,9 @@
           >
             <div class="flex items-center gap-2 mb-3">
               <span class="material-symbols-outlined text-red-600">timer</span>
-              <h2 class="font-bold text-lg">Finalizar Rodada</h2>
+              <h2 class="font-bold text-lg text-text-light dark:text-text-dark">
+                Finalizar Rodada
+              </h2>
             </div>
             <p class="text-sm text-black/60 dark:text-white/60 mb-4">
               Vote para encerrar a rodada atual e revelar os resultados
@@ -661,7 +695,9 @@
               <span class="material-symbols-outlined text-blue-600"
                 >people</span
               >
-              <h2 class="font-bold text-lg">Gestão de Usuários</h2>
+              <h2 class="font-bold text-lg text-text-light dark:text-text-dark">
+                Gestão de Usuários
+              </h2>
             </div>
             <div class="space-y-3">
               <button
@@ -688,7 +724,9 @@
               <span class="material-symbols-outlined text-green-600"
                 >sports_esports</span
               >
-              <h2 class="font-bold text-lg">Gestão de Rodadas</h2>
+              <h2 class="font-bold text-lg text-text-light dark:text-text-dark">
+                Gestão de Rodadas
+              </h2>
             </div>
             <div class="space-y-3">
               <button
@@ -727,7 +765,11 @@
                 <div
                   class="bg-white dark:bg-gray-800 p-6 rounded-lg max-w-md w-full mx-4"
                 >
-                  <h3 class="text-lg font-bold mb-4">📄 Gerar PDF da Rodada</h3>
+                  <h3
+                    class="text-lg font-bold mb-4 text-text-light dark:text-text-dark"
+                  >
+                    📄 Gerar PDF da Rodada
+                  </h3>
                   <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
                     Selecione uma rodada finalizada para gerar o PDF:
                   </p>
@@ -758,7 +800,9 @@
               <span class="material-symbols-outlined text-purple-600"
                 >content_copy</span
               >
-              <h2 class="font-bold text-lg">Gestão de Conteúdo</h2>
+              <h2 class="font-bold text-lg text-text-light dark:text-text-dark">
+                Gestão de Conteúdo
+              </h2>
             </div>
             <div class="space-y-3">
               <button
@@ -785,7 +829,9 @@
               <span class="material-symbols-outlined text-yellow-600"
                 >build</span
               >
-              <h2 class="font-bold text-lg">Ferramentas de Manutenção</h2>
+              <h2 class="font-bold text-lg text-text-light dark:text-text-dark">
+                Ferramentas de Manutenção
+              </h2>
             </div>
             <div class="space-y-3">
               <button
