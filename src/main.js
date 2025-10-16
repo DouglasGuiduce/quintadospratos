@@ -509,23 +509,27 @@ async function calcularResultadosDaRodada(rodadaId) {
           console.log(`📊 Perfil atual - Pontos: ${pontosAtuais}, Jogos: ${jogosAtuais}`);
           console.log(`📊 Novo total - Pontos: ${pontosAtuais + pontosGanhos}, Jogos: ${jogosAtuais + 1}`);
           
+          // Calcular nova média geral
+          const novosPontosTotais = pontosAtuais + pontosGanhos;
+          const novosJogos = jogosAtuais + 1;
+          const novaMediaGeral = novosPontosTotais / novosJogos;
+          
           // Atualizar perfil
           console.log(`💾 Atualizando perfil do usuário ${prato.id_usuario}...`);
           const { error: updateError } = await supabase
             .from('perfis')
-            .upsert({ 
-              id: prato.id_usuario,
-              pontos_totais: pontosAtuais + pontosGanhos,
-              jogos_participados: jogosAtuais + 1
-            }, {
-              onConflict: 'id'
-            });
+            .update({ 
+              pontos_totais: novosPontosTotais,
+              jogos_participados: novosJogos,
+              media_geral: novaMediaGeral
+            })
+            .eq('id', prato.id_usuario);
           
           if (updateError) {
             console.error(`❌ Erro ao atualizar perfil de ${prato.id_usuario}:`, updateError);
             console.error(`❌ Detalhes do erro:`, JSON.stringify(updateError, null, 2));
           } else {
-            console.log(`✅ Perfil atualizado com sucesso: ${prato.id_usuario} - Total: ${(pontosAtuais + pontosGanhos).toFixed(2)} pontos, ${jogosAtuais + 1} jogos`);
+            console.log(`✅ Perfil atualizado com sucesso: ${prato.id_usuario} - Total: ${novosPontosTotais.toFixed(2)} pontos, ${novosJogos} jogos, Média: ${novaMediaGeral.toFixed(2)}`);
           }
         } else {
           // Mesmo sem avaliações, incrementar jogos participados
@@ -547,12 +551,10 @@ async function calcularResultadosDaRodada(rodadaId) {
           console.log(`💾 Atualizando jogos participados do usuário ${prato.id_usuario}...`);
           const { error: updateError } = await supabase
             .from('perfis')
-            .upsert({ 
-              id: prato.id_usuario,
+            .update({ 
               jogos_participados: jogosAtuais + 1
-            }, {
-              onConflict: 'id'
-            });
+            })
+            .eq('id', prato.id_usuario);
           
           if (updateError) {
             console.error(`❌ Erro ao atualizar jogos participados de ${prato.id_usuario}:`, updateError);
@@ -588,12 +590,10 @@ async function calcularResultadosDaRodada(rodadaId) {
             
             const { error: vitoriaError } = await supabase
               .from('perfis')
-              .upsert({ 
-                id: vencedorId,
+              .update({ 
                 vitorias: vitoriasAtuais + 1 
-              }, {
-                onConflict: 'id'
-              });
+              })
+              .eq('id', vencedorId);
             
             if (vitoriaError) {
               console.error(`❌ Erro ao atualizar vitória de ${vencedorId}:`, vitoriaError);
