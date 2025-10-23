@@ -1567,6 +1567,9 @@ async function carregarComentariosModal(idPrato, containerComentarios) {
     const divComentario = await criarElementoComentarioModal(comentario, idPrato);
     containerComentarios.appendChild(divComentario);
   }
+  
+  // Configurar event listeners para os botões do modal
+  configurarEventListenersModalComentarios(idPrato);
 }
 
 async function criarElementoComentarioModal(comentario, idPrato, isResposta = false) {
@@ -1582,8 +1585,19 @@ async function criarElementoComentarioModal(comentario, idPrato, isResposta = fa
   const totalCurtidas = curtidas?.length || 0;
   const euCurti = curtidas?.some(c => c.id_usuario === USUARIO_LOGADO?.id) || false;
   
+  // Buscar respostas se for comentário principal
+  let respostas = [];
+  if (!isResposta) {
+    const { data: respostasData } = await supabase
+      .from('comentarios')
+      .select('*, perfis(nome_completo, url_foto)')
+      .eq('id_comentario_pai', comentario.id)
+      .order('data_envio', { ascending: true });
+    respostas = respostasData || [];
+  }
+  
   const divComentario = document.createElement('div');
-  divComentario.className = `${isResposta ? 'ml-12' : ''} bg-gray-50 dark:bg-gray-800 p-4 rounded-2xl`;
+  divComentario.className = `${isResposta ? 'ml-12' : ''} bg-gray-50 dark:bg-gray-800 p-4 rounded-2xl mb-3`;
   
   // Criar elemento de foto do usuário
   const fotoElement = urlFoto 
@@ -1591,7 +1605,7 @@ async function criarElementoComentarioModal(comentario, idPrato, isResposta = fa
     : `<div class="w-12 h-12 rounded-full bg-primary text-white flex items-center justify-center text-lg font-bold">${nomeUsuario.charAt(0).toUpperCase()}</div>`;
   
   divComentario.innerHTML = `
-    <div class="flex items-start gap-4">
+    <div class="flex items-start gap-4" data-comentario-id="${comentario.id}" id="comentario-${comentario.id}">
       <div class="flex-shrink-0">
         ${fotoElement}
       </div>
@@ -1608,14 +1622,45 @@ async function criarElementoComentarioModal(comentario, idPrato, isResposta = fa
             <span class="curtidas-count-modal font-medium">${totalCurtidas > 0 ? totalCurtidas : ''}</span>
           </button>
           
-          <button class="btn-responder-modal text-sm text-gray-500 dark:text-gray-400 hover:text-primary transition-colors font-medium" data-comentario-id="${comentario.id}">
-            <span class="material-symbols-outlined text-lg">reply</span>
-            Responder
-          </button>
+          ${!isResposta ? `
+            <button class="btn-responder-modal text-sm text-gray-500 dark:text-gray-400 hover:text-primary transition-colors font-medium" data-comentario-id="${comentario.id}">
+              <span class="material-symbols-outlined text-lg">reply</span>
+              Responder
+            </button>
+          ` : ''}
         </div>
+        
+        ${!isResposta && respostas.length > 0 ? `
+          <div class="respostas-container-modal mt-3"></div>
+        ` : ''}
+        
+        ${!isResposta ? `
+          <div class="form-resposta-modal hidden mt-4 flex items-center gap-2">
+            <input
+              type="text"
+              placeholder="Escrever resposta..."
+              class="input-resposta-modal flex-grow block w-full rounded-full border-gray-300 shadow-sm text-sm focus:border-primary focus:ring-primary/50 dark:bg-background-dark dark:border-gray-600 px-4 py-2"
+            />
+            <button class="btn-enviar-resposta-modal p-2 rounded-full bg-primary text-white hover:bg-primary/90">
+              <span class="material-symbols-outlined text-base">send</span>
+            </button>
+            <button class="btn-cancelar-resposta-modal p-2 rounded-full bg-gray-400 text-white hover:bg-gray-500">
+              <span class="material-symbols-outlined text-base">close</span>
+            </button>
+          </div>
+        ` : ''}
       </div>
     </div>
   `;
+  
+  // Renderizar respostas existentes
+  if (!isResposta && respostas.length > 0) {
+    const respostasContainer = divComentario.querySelector('.respostas-container-modal');
+    for (const resposta of respostas) {
+      const divResposta = await criarElementoComentarioModal(resposta, idPrato, true);
+      respostasContainer.appendChild(divResposta);
+    }
+  }
   
   return divComentario;
 }
@@ -1658,16 +1703,249 @@ async function enviarComentarioModal(idPrato, textoComentario, inputElement) {
   mostrarNotificacaoComentario(idPrato);
 }
 
-function atualizarContadorComentarios(idPrato) {
+// Função para configurar event listeners dos comentários no modal
+function configurarEventListenersModalComentarios(idPrato) {
+  const modal = document.getElementById(`modal-comentarios-${idPrato}`);
+  if (!modal) return;
+  
+  // Event listeners para curtir
+  const botoesCurtir = modal.querySelectorAll('.btn-curtir-modal');
+  botoesCurtir.forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      e.preventDefault();
+      const idComentario = btn.dataset.comentarioId;
+      await toggleCurtidaModal(idComentario, btn);
+    });
+  });
+  
+  // Event listeners para responder - usando delegação de eventos
+  modal.addEventListener('click', (e) => {
+    if (e.target.closest('.btn-responder-modal')) {
+      e.preventDefault();
+      const btn = e.target.closest('.btn-responder-modal');
+      const idComentario = btn.dataset.comentarioId;
+      
+      // Encontrar o elemento pai com data-comentario-id
+      let comentarioElement = btn.closest('[data-comentario-id]');
+      
+      // Se não encontrou, tentar encontrar pelo ID
+      if (!comentarioElement) {
+        comentarioElement = document.getElementById(`comentario-${idComentario}`);
+      }
+      
+      // Se ainda não encontrou, navegar manualmente
+      if (!comentarioElement) {
+        let elemento = btn.parentElement;
+        while (elemento && elemento !== modal && !elemento.hasAttribute('data-comentario-id')) {
+          elemento = elemento.parentElement;
+        }
+        comentarioElement = elemento;
+      }
+      
+      if (comentarioElement) {
+        const formResposta = comentarioElement.querySelector('.form-resposta-modal');
+        const inputResposta = comentarioElement.querySelector('.input-resposta-modal');
+        
+        if (formResposta && inputResposta) {
+          formResposta.classList.toggle('hidden');
+          if (!formResposta.classList.contains('hidden')) {
+            inputResposta.focus();
+          }
+        } else {
+          // Tentar encontrar os elementos em todo o modal
+          const formRespostaGlobal = modal.querySelector(`#comentario-${idComentario} .form-resposta-modal`);
+          const inputRespostaGlobal = modal.querySelector(`#comentario-${idComentario} .input-resposta-modal`);
+          
+          if (formRespostaGlobal && inputRespostaGlobal) {
+            formRespostaGlobal.classList.toggle('hidden');
+            if (!formRespostaGlobal.classList.contains('hidden')) {
+              inputRespostaGlobal.focus();
+            }
+          }
+        }
+      }
+    }
+  });
+  
+  // Event listeners para enviar resposta
+  const botoesEnviarResposta = modal.querySelectorAll('.btn-enviar-resposta-modal');
+  botoesEnviarResposta.forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      e.preventDefault();
+      const comentarioElement = btn.closest('[data-comentario-id]');
+      const idComentarioPai = comentarioElement?.dataset.comentarioId;
+      const inputResposta = comentarioElement?.querySelector('.input-resposta-modal');
+      
+      if (idComentarioPai && inputResposta) {
+        const textoResposta = inputResposta.value.trim();
+        if (textoResposta) {
+          await adicionarRespostaModal(idComentarioPai, idPrato, textoResposta, comentarioElement);
+          inputResposta.value = '';
+        }
+      } else {
+        console.error('Elementos de resposta não encontrados para enviar');
+      }
+    });
+  });
+  
+  // Event listeners para cancelar resposta
+  const botoesCancelarResposta = modal.querySelectorAll('.btn-cancelar-resposta-modal');
+  botoesCancelarResposta.forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      const comentarioElement = btn.closest('[data-comentario-id]');
+      const formResposta = comentarioElement?.querySelector('.form-resposta-modal');
+      const inputResposta = comentarioElement?.querySelector('.input-resposta-modal');
+      
+      if (formResposta && inputResposta) {
+        formResposta.classList.add('hidden');
+        inputResposta.value = '';
+      } else {
+        console.error('Elementos de resposta não encontrados para cancelar');
+      }
+    });
+  });
+  
+  // Event listeners para Enter no input de resposta
+  const inputsResposta = modal.querySelectorAll('.input-resposta-modal');
+  inputsResposta.forEach(input => {
+    input.addEventListener('keypress', async (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        const comentarioElement = input.closest('[data-comentario-id]');
+        const idComentarioPai = comentarioElement?.dataset.comentarioId;
+        const textoResposta = input.value.trim();
+        
+        if (idComentarioPai && textoResposta) {
+          await adicionarRespostaModal(idComentarioPai, idPrato, textoResposta, comentarioElement);
+          input.value = '';
+        }
+      }
+    });
+  });
+}
+
+// Função para gerenciar curtidas no modal
+async function toggleCurtidaModal(idComentario, elementoBotao) {
+  if (!USUARIO_LOGADO) {
+    alert("Faça login para curtir!");
+    return;
+  }
+  
+  // Verificar se já curtiu
+  const { data: curtidasExistentes } = await supabase
+    .from('curtidas_comentarios')
+    .select('id')
+    .eq('id_comentario', idComentario)
+    .eq('id_usuario', USUARIO_LOGADO.id);
+  
+  const iconeCurtir = elementoBotao.querySelector('.material-symbols-outlined');
+  const contadorCurtidas = elementoBotao.querySelector('.curtidas-count-modal');
+  
+  if (curtidasExistentes && curtidasExistentes.length > 0) {
+    // Descurtir
+    const { error } = await supabase
+      .from('curtidas_comentarios')
+      .delete()
+      .eq('id', curtidasExistentes[0].id);
+    
+    if (!error) {
+      iconeCurtir.textContent = 'favorite_border';
+      elementoBotao.classList.remove('text-red-500');
+      elementoBotao.classList.add('text-gray-500', 'dark:text-gray-400');
+      
+      // Atualizar contador
+      const { data: curtidas } = await supabase
+        .from('curtidas_comentarios')
+        .select('id')
+        .eq('id_comentario', idComentario);
+      contadorCurtidas.textContent = curtidas?.length > 0 ? curtidas.length : '';
+    }
+  } else {
+    // Curtir
+    const { error } = await supabase
+      .from('curtidas_comentarios')
+      .insert({ id_comentario: idComentario, id_usuario: USUARIO_LOGADO.id });
+    
+    if (!error) {
+      iconeCurtir.textContent = 'favorite';
+      elementoBotao.classList.add('text-red-500');
+      elementoBotao.classList.remove('text-gray-500', 'dark:text-gray-400');
+      
+      // Atualizar contador
+      const { data: curtidas } = await supabase
+        .from('curtidas_comentarios')
+        .select('id')
+        .eq('id_comentario', idComentario);
+      contadorCurtidas.textContent = curtidas?.length || 1;
+    }
+  }
+}
+
+// Função para adicionar resposta no modal
+async function adicionarRespostaModal(idComentarioPai, idPrato, textoResposta, elementoComentario) {
+  if (!USUARIO_LOGADO) {
+    alert("Você precisa estar logado para responder!");
+    return;
+  }
+
+  if (!textoResposta || textoResposta.trim() === '') {
+    alert("Digite uma resposta antes de enviar!");
+    return;
+  }
+
+  const { error } = await supabase.from('comentarios').insert([{
+    id_prato: idPrato,
+    id_usuario: USUARIO_LOGADO.id,
+    texto_comentario: textoResposta.trim(),
+    id_comentario_pai: idComentarioPai
+  }]);
+
+  if (error) {
+    console.error("Erro ao adicionar resposta:", error);
+    alert("Erro ao enviar resposta. Tente novamente.");
+    return;
+  }
+
+  // Esconder formulário de resposta
+  const formResposta = elementoComentario.querySelector('.form-resposta-modal');
+  formResposta.classList.add('hidden');
+
+  // Recarregar comentários do modal
+  const modal = document.getElementById(`modal-comentarios-${idPrato}`);
+  if (modal) {
+    const listaComentarios = modal.querySelector('.lista-comentarios-modal');
+    carregarComentariosModal(idPrato, listaComentarios);
+  }
+  
+  // Atualizar contador no card original (apenas para este prato específico)
+  atualizarContadorComentarios(idPrato);
+  
+  // Mostrar notificação (apenas para este prato específico)
+  mostrarNotificacaoComentario(idPrato);
+}
+
+async function atualizarContadorComentarios(idPrato) {
   const botaoComentarios = document.querySelector(`[data-prato-id="${idPrato}"]`);
   if (botaoComentarios) {
     const contador = botaoComentarios.querySelector('.contador-comentarios');
-    // Recarregar contador (implementar lógica similar à carregarComentariosComContador)
-    // Por simplicidade, vamos apenas incrementar visualmente
-    const textoAtual = contador.textContent;
-    if (textoAtual.includes('comentário')) {
-      const numero = parseInt(textoAtual.match(/\d+/)?.[0] || '0') + 1;
-      contador.textContent = numero === 1 ? 'Ver 1 comentário' : `Ver ${numero} comentários`;
+    
+    // Buscar total de comentários (incluindo respostas)
+    const { data: comentarios, error } = await supabase
+      .from('comentarios')
+      .select('id')
+      .eq('id_prato', idPrato);
+    
+    if (!error && comentarios) {
+      const totalComentarios = comentarios.length;
+      contador.textContent = totalComentarios === 1 ? 'Ver 1 comentário' : `Ver ${totalComentarios} comentários`;
+    } else {
+      // Fallback: incrementar visualmente
+      const textoAtual = contador.textContent;
+      if (textoAtual.includes('comentário')) {
+        const numero = parseInt(textoAtual.match(/\d+/)?.[0] || '0') + 1;
+        contador.textContent = numero === 1 ? 'Ver 1 comentário' : `Ver ${numero} comentários`;
+      }
     }
   }
 }
