@@ -57,9 +57,9 @@ export async function gerarPDFRodada(rodadaId) {
      yPosition = verificarNovaPagina(doc, yPosition, margin, 80);
      yPosition = adicionarCuriosidades(doc, dadosRodada, yPosition, contentWidth, margin);
      
-     // 6. TABELA DE QUEM VOTOU EM QUEM
-     yPosition = verificarNovaPagina(doc, yPosition, margin, 150);
-     yPosition = await adicionarTabelaVotos(doc, dadosRodada, yPosition, contentWidth, margin);
+     // 6. TABELA DE QUEM VOTOU EM QUEM - REMOVIDA DO PDF
+     // yPosition = verificarNovaPagina(doc, yPosition, margin, 150);
+     // yPosition = await adicionarTabelaVotos(doc, dadosRodada, yPosition, contentWidth, margin);
      
      // 7. RODAPÉ
      adicionarRodape(doc, pageHeight, margin);
