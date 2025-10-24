@@ -2777,6 +2777,8 @@ async function carregarMatrizVotos() {
     if (!ultimaRodada) {
       document.getElementById('mensagem-matriz-votos').textContent = 'Nenhuma rodada finalizada ainda';
       document.getElementById('tabela-matriz-votos').classList.add('hidden');
+      document.getElementById('mensagem-media').textContent = 'Nenhuma rodada finalizada ainda';
+      document.getElementById('tabela-media-usuarios').classList.add('hidden');
       return;
     }
 
@@ -2797,6 +2799,8 @@ async function carregarMatrizVotos() {
     if (!avaliacoes || avaliacoes.length === 0) {
       document.getElementById('mensagem-matriz-votos').textContent = 'Nenhum voto encontrado';
       document.getElementById('tabela-matriz-votos').classList.add('hidden');
+      document.getElementById('mensagem-media').textContent = 'Nenhum voto encontrado';
+      document.getElementById('tabela-media-usuarios').classList.add('hidden');
       return;
     }
 
@@ -2850,8 +2854,117 @@ async function carregarMatrizVotos() {
     document.getElementById('tabela-matriz-votos').classList.remove('hidden');
     document.getElementById('mensagem-matriz-votos').classList.add('hidden');
     
+    // Carregar tabela de médias
+    await carregarTabelaMedias();
+    
   } catch (error) {
     console.error('❌ Erro ao carregar matriz de votos:', error);
+  }
+}
+
+/**
+ * Carrega tabela de médias de notas por usuário da última rodada
+ */
+async function carregarTabelaMedias() {
+  try {
+    // Buscar última rodada finalizada
+    const { data: ultimaRodada } = await supabase
+      .from('rodadas')
+      .select('id, nome')
+      .eq('status', 'finalizada')
+      .order('id', { ascending: false })
+      .limit(1)
+      .single();
+
+    if (!ultimaRodada) {
+      document.getElementById('mensagem-media').textContent = 'Nenhuma rodada finalizada ainda';
+      return;
+    }
+
+    // Buscar avaliações apenas da última rodada
+    const { data: avaliacoesUltimaRodada } = await supabase
+      .from('avaliacoes')
+      .select(`
+        id_votante,
+        nota,
+        pratos!inner(rodada_id),
+        perfis!inner(nome_completo)
+      `)
+      .eq('pratos.rodada_id', ultimaRodada.id);
+
+    if (!avaliacoesUltimaRodada || avaliacoesUltimaRodada.length === 0) {
+      document.getElementById('mensagem-media').textContent = 'Nenhuma avaliação encontrada na última rodada';
+      return;
+    }
+
+    // Agrupar por usuário e calcular médias
+    const mediasPorUsuario = new Map();
+    
+    avaliacoesUltimaRodada.forEach(avaliacao => {
+      const userId = avaliacao.id_votante;
+      const nome = avaliacao.perfis.nome_completo;
+      
+      if (!mediasPorUsuario.has(userId)) {
+        mediasPorUsuario.set(userId, {
+          nome: nome,
+          notas: [],
+          totalVotos: 0
+        });
+      }
+      
+      const usuario = mediasPorUsuario.get(userId);
+      usuario.notas.push(avaliacao.nota);
+      usuario.totalVotos++;
+    });
+
+    // Calcular médias
+    const usuariosComMedias = Array.from(mediasPorUsuario.values()).map(usuario => {
+      const somaNotas = usuario.notas.reduce((sum, nota) => sum + nota, 0);
+      const media = usuario.totalVotos > 0 ? somaNotas / usuario.totalVotos : 0;
+      
+      return {
+        nome: usuario.nome,
+        media: Math.round(media * 10) / 10,
+        totalVotos: usuario.totalVotos
+      };
+    });
+
+    // Ordenar por nota média (maior para menor)
+    usuariosComMedias.sort((a, b) => b.media - a.media);
+
+    // Criar HTML da tabela
+    let html = '<div class="overflow-x-auto"><table class="w-full text-sm">';
+    
+    // Cabeçalho
+    html += '<thead><tr class="bg-gray-50 dark:bg-gray-800">';
+    html += '<th class="p-3 text-left font-bold">Usuário</th>';
+    html += '<th class="p-3 text-center font-bold">Média (Última Rodada)</th>';
+    html += '<th class="p-3 text-center font-bold">Votos na Rodada</th>';
+    html += '</tr></thead>';
+    
+    // Corpo
+    html += '<tbody>';
+    usuariosComMedias.forEach(usuario => {
+      const corMedia = usuario.media >= 8 ? 'text-green-600' : 
+                      usuario.media >= 6 ? 'text-yellow-600' : 
+                      usuario.media >= 4 ? 'text-orange-600' : 'text-red-600';
+      
+      html += '<tr class="border-b border-gray-200 dark:border-gray-700">';
+      html += `<td class="p-3 font-medium">${usuario.nome}</td>`;
+      html += `<td class="p-3 text-center font-bold ${corMedia}">${usuario.media}</td>`;
+      html += `<td class="p-3 text-center text-gray-600 dark:text-gray-400">${usuario.totalVotos}</td>`;
+      html += '</tr>';
+    });
+    html += '</tbody></table></div>';
+
+    // Mostrar tabela
+    document.getElementById('tabela-media-usuarios').innerHTML = html;
+    document.getElementById('tabela-media-usuarios').classList.remove('hidden');
+    document.getElementById('mensagem-media').classList.add('hidden');
+
+  } catch (error) {
+    console.error('❌ Erro ao carregar tabela de médias:', error);
+    document.getElementById('mensagem-media').textContent = 'Erro ao carregar dados';
   }
 }
 
