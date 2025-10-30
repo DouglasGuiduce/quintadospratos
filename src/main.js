@@ -2167,6 +2167,11 @@ function exibirPratosNoCarrossel(pratos, rodada, carouselId, dotsId) {
       carregarVotoExistente(prato.id, todasEstrelas, secaoEstrelas);
     }
 
+    // Se a rodada estiver finalizada, mostrar a nota média no lugar da votação
+    if (rodada && rodada.status === 'finalizada') {
+      renderNotaMediaNoLugarDasEstrelas(prato.id, secaoEstrelas);
+    }
+
     // Configurar comentários estilo Instagram
     const containerComentarios = cartaoPrato.querySelector('.comentarios-lista');
     const inputComentario = cartaoPrato.querySelector('.comentario-input');
@@ -2293,6 +2298,46 @@ function exibirPratosNoCarrossel(pratos, rodada, carouselId, dotsId) {
   }
 }
 
+// Renderiza a nota média do prato no bloco onde ficavam as estrelas
+async function renderNotaMediaNoLugarDasEstrelas(idPrato, secaoEstrelas) {
+  try {
+    const { data: avaliacoes, error } = await supabase
+      .from('avaliacoes')
+      .select('nota')
+      .eq('id_prato', idPrato);
+
+    if (error) {
+      console.error('❌ Erro ao carregar avaliações para média:', error);
+      secaoEstrelas.innerHTML = '<p class="text-xs text-center text-red-600">Erro ao carregar nota</p>';
+      return;
+    }
+
+    const totalVotos = (avaliacoes || []).length;
+    const media = totalVotos > 0
+      ? (avaliacoes.reduce((sum, a) => sum + (a.nota || 0), 0) / totalVotos)
+      : 0;
+
+    const mediaFormatada = media.toFixed(1);
+    const corMedia = media >= 8 ? 'text-green-600' :
+                     media >= 6 ? 'text-yellow-600' :
+                     media >= 4 ? 'text-orange-600' : 'text-red-600';
+
+    secaoEstrelas.innerHTML = `
+      <div class="text-center py-2">
+        <p class="text-xs text-gray-600 dark:text-gray-400 mb-1">Nota do prato</p>
+        <div class="flex items-center justify-center gap-2">
+          <span class="material-symbols-outlined text-yellow-500">grade</span>
+          <span class="text-xl font-bold ${corMedia}">${mediaFormatada}</span>
+          <span class="text-xs text-gray-500">(${totalVotos} votos)</span>
+        </div>
+      </div>
+    `;
+  } catch (e) {
+    console.error('❌ Erro inesperado ao renderizar média:', e);
+    secaoEstrelas.innerHTML = '<p class="text-xs text-center text-red-600">Erro ao carregar nota</p>';
+  }
+}
+
 async function carregarVotoExistente(idPrato, todasEstrelas, secaoEstrelas) {
   if (!USUARIO_LOGADO) return;
   
@@ -2304,18 +2349,8 @@ async function carregarVotoExistente(idPrato, todasEstrelas, secaoEstrelas) {
     .single();
   
   if (rodadaData && rodadaData.rodadas && rodadaData.rodadas.status === 'finalizada') {
-    // Rodada finalizada - bloquear votação
-    secaoEstrelas.innerHTML = `
-      <div class="text-center py-4">
-        <span class="material-symbols-outlined text-4xl text-gray-400 mb-2">lock</span>
-        <p class="text-sm font-bold text-gray-600 dark:text-gray-400">
-          🏁 Rodada Finalizada
-        </p>
-        <p class="text-xs text-gray-500 dark:text-gray-500 mt-1">
-          Esta rodada já foi encerrada
-        </p>
-      </div>
-    `;
+    // Rodada finalizada - mostrar nota média no lugar das estrelas
+    await renderNotaMediaNoLugarDasEstrelas(idPrato, secaoEstrelas);
     return;
   }
   
