@@ -444,6 +444,39 @@ async function calcularResultadosDaRodada(rodadaId) {
     let melhorMedia = 0;
     let vencedoresIds = []; // Array para múltiplos vencedores
     const resultadosPratos = [];
+
+    // ===== NOVA REGRA: Considerar apenas votos de usuários que completaram TODOS os votos exigidos =====
+    const pratoIds = pratos.map(p => p.id);
+    const usuariosComPrato = new Set(pratos.map(p => p.id_usuario));
+
+    // Buscar todas as avaliações da rodada (para todos pratos) com id_votante
+    const { data: todasAvaliacoes, error: erroTodas } = await supabase
+      .from('avaliacoes')
+      .select('id_prato, id_votante')
+      .in('id_prato', pratoIds);
+    if (erroTodas) {
+      console.error('❌ Erro ao buscar avaliações da rodada:', erroTodas);
+      return;
+    }
+
+    // Contagem por votante
+    const contagemPorVotante = new Map(); // id_votante -> count validos
+    for (const av of (todasAvaliacoes || [])) {
+      // Desconsiderar eventual voto no próprio prato (não deveria existir pela UI)
+      const prato = pratos.find(p => p.id === av.id_prato);
+      if (!prato) continue;
+      if (prato.id_usuario === av.id_votante) continue;
+      contagemPorVotante.set(av.id_votante, (contagemPorVotante.get(av.id_votante) || 0) + 1);
+    }
+
+    // Determinar quem completou
+    const validVotanteIds = new Set();
+    for (const [votanteId, count] of contagemPorVotante.entries()) {
+      const precisa = usuariosComPrato.has(votanteId) ? Math.max(0, pratos.length - 1) : pratos.length;
+      if (count >= precisa && precisa > 0) {
+        validVotanteIds.add(votanteId);
+      }
+    }
     
     // Calcular média de cada prato e atualizar perfis
     for (let i = 0; i < pratos.length; i++) {
@@ -451,10 +484,10 @@ async function calcularResultadosDaRodada(rodadaId) {
       console.log(`\n🔄 Processando prato ${i + 1}/${pratos.length}: ID ${prato.id}, Usuário ${prato.id_usuario}`);
       
       try {
-        // Buscar todas as avaliações deste prato
+        // Buscar avaliações deste prato apenas de votantes válidos (completos)
         const { data: avaliacoes, error: errorAvaliacoes } = await supabase
           .from('avaliacoes')
-          .select('nota')
+          .select('nota, id_votante')
           .eq('id_prato', prato.id);
         
         if (errorAvaliacoes) {
@@ -464,12 +497,15 @@ async function calcularResultadosDaRodada(rodadaId) {
         
         console.log(`📊 Prato ${prato.id}: ${avaliacoes?.length || 0} avaliações`);
         
-        if (avaliacoes && avaliacoes.length > 0) {
+        // Filtrar por votantes válidos
+        const avaliacoesValidas = (avaliacoes || []).filter(a => validVotanteIds.has(a.id_votante));
+
+        if (avaliacoesValidas.length > 0) {
           // Calcular média
-          const somaNotas = avaliacoes.reduce((sum, av) => sum + av.nota, 0);
-          const mediaPrato = somaNotas / avaliacoes.length;
+          const somaNotas = avaliacoesValidas.reduce((sum, av) => sum + av.nota, 0);
+          const mediaPrato = somaNotas / avaliacoesValidas.length;
           
-          console.log(`📊 Prato ${prato.id} - Avaliações:`, avaliacoes.map(a => a.nota));
+          console.log(`📊 Prato ${prato.id} - Avaliações (válidas):`, avaliacoesValidas.map(a => a.nota));
           console.log(`📊 Prato ${prato.id} - Soma: ${somaNotas}, Média: ${mediaPrato.toFixed(2)}`);
           
           resultadosPratos.push({
@@ -963,6 +999,26 @@ async function criarCardRodada(rodada, container) {
   
   rodadaElement.innerHTML = `
     ${header}
+    ${rodada.status === 'votacao_aberta' ? `
+    <div class="px-4 mb-3" id="progresso-rodada-${rodada.id}">
+      <div class="w-full flex items-center justify-between gap-2 text-sm bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2">
+        <div class="flex items-center gap-2 font-bold text-text-light dark:text-text-dark">
+          <span class="material-symbols-outlined text-orange-600">how_to_vote</span>
+          <span>
+            <span class="progresso-y" data-rodada="${rodada.id}">0</span>
+            /
+            <span class="progresso-x" data-rodada="${rodada.id}">0</span>
+          </span>
+        </div>
+        <div class="text-xs text-black/60 dark:text-white/60">
+          Faltam <span class="progresso-z" data-rodada="${rodada.id}">0</span> votos
+        </div>
+      </div>
+      <div class="mt-1 text-[11px] text-black/50 dark:text-white/50">
+        Seus votos só contam se completar todos os pratos desta rodada.
+      </div>
+    </div>
+    ` : ''}
     <div class="relative">
       <!-- Seta esquerda (apenas desktop) -->
       <button
@@ -998,6 +1054,79 @@ async function criarCardRodada(rodada, container) {
   
   // Renderizar pratos no carrossel
   exibirPratosNoCarrossel(pratos, rodada, carouselId, dotsId);
+
+  // Atualizar e manter o progresso do usuário enquanto a votação estiver aberta
+  if (rodada.status === 'votacao_aberta') {
+    atualizarProgressoVotacaoUsuario(rodada.id, pratos);
+    // polling leve para refletir novos pratos/votos
+    const key = `progresso-interval-${rodada.id}`;
+    // Evitar múltiplos intervals para a mesma rodada
+    if (!window[key]) {
+      window[key] = setInterval(() => {
+        atualizarProgressoVotacaoUsuario(rodada.id);
+      }, 15000);
+    }
+  }
+}
+
+// Calcula e atualiza o progresso de votos do usuário na rodada (y/x e faltam z)
+async function atualizarProgressoVotacaoUsuario(rodadaId, pratosPreCarregados) {
+  if (!USUARIO_LOGADO || !rodadaId) return;
+
+  try {
+    // 1) Carregar pratos da rodada (se não recebemos em memória)
+    let pratos = pratosPreCarregados;
+    if (!pratos) {
+      const { data: pratosData, error: erroPratos } = await supabase
+        .from('pratos')
+        .select('id, id_usuario')
+        .eq('rodada_id', rodadaId);
+      if (erroPratos) {
+        console.error('Erro ao buscar pratos para progresso:', erroPratos);
+        return;
+      }
+      pratos = pratosData || [];
+    }
+
+    const pratoIds = pratos.map(p => p.id);
+
+    // 2) Calcular x e xUsuario (não pode votar no próprio prato)
+    const temMeuPrato = pratos.some(p => p.id_usuario === USUARIO_LOGADO.id);
+    const x = pratos.length;
+    const xUsuario = temMeuPrato ? Math.max(0, x - 1) : x;
+
+    // 3) Buscar quantos votos o usuário já deu nesta rodada (apenas nesses pratos)
+    let y = 0;
+    if (pratoIds.length > 0) {
+      const { data: meusVotos, error: erroVotos } = await supabase
+        .from('avaliacoes')
+        .select('id_prato')
+        .eq('id_votante', USUARIO_LOGADO.id)
+        .in('id_prato', pratoIds);
+      if (erroVotos) {
+        console.error('Erro ao buscar votos do usuário para progresso:', erroVotos);
+        return;
+      }
+      // Excluir eventual voto no próprio prato (não deveria existir, mas por garantia)
+      const idsProprios = new Set(pratos.filter(p => p.id_usuario === USUARIO_LOGADO.id).map(p => p.id));
+      const validos = (meusVotos || []).filter(v => !idsProprios.has(v.id_prato));
+      y = validos.length;
+    }
+
+    const z = Math.max(0, xUsuario - y);
+
+    // 4) Atualizar UI do banner desta rodada
+    const container = document.getElementById(`progresso-rodada-${rodadaId}`);
+    if (!container) return;
+    const elY = container.querySelector(`.progresso-y[data-rodada="${rodadaId}"]`);
+    const elX = container.querySelector(`.progresso-x[data-rodada="${rodadaId}"]`);
+    const elZ = container.querySelector(`.progresso-z[data-rodada="${rodadaId}"]`);
+    if (elY) elY.textContent = y;
+    if (elX) elX.textContent = xUsuario;
+    if (elZ) elZ.textContent = z;
+  } catch (e) {
+    console.error('Erro ao atualizar progresso de votação:', e);
+  }
 }
 
 // ========================================================================
@@ -2363,6 +2492,12 @@ async function salvarAvaliacao(idDoPrato, nota, elementoEstrelas) {
     if (RODADA_ABERTA) {
       console.log('🔄 Verificando se deve finalizar a rodada após o voto...');
       await verificarEFinalizarRodada();
+      // Atualizar progresso do usuário após votar
+      try {
+        atualizarProgressoVotacaoUsuario(RODADA_ABERTA.id);
+      } catch (e) {
+        console.warn('Não foi possível atualizar progresso imediatamente:', e);
+      }
     }
   }
 }
